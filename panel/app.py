@@ -114,15 +114,13 @@ def api_tools_route():
 
             all_services = []
             if isinstance(all_services_raw, list):
-                for item in all_services_raw:
-                    if 'services' in item and isinstance(item['services'], list):
-                        for service in item['services']:
-                            if 'service' in service and 'name' in service:
-                                all_services.append({
-                                    'id': service.get('service'),
-                                    'name': service.get('name'),
-                                    'price': service.get('price')
-                                })
+                for service in all_services_raw:
+                    if isinstance(service, dict) and 'id' in service and 'name' in service:
+                        all_services.append({
+                            'id': service.get('id'),
+                            'name': service.get('name'),
+                            'price': service.get('price')
+                        })
 
             start = (page - 1) * PER_PAGE
             end = start + PER_PAGE
@@ -159,13 +157,9 @@ def import_from_cache_route():
             with open(CACHE_FILE, "r", encoding="utf-8") as f:
                 all_services_raw = json.load(f)
             if isinstance(all_services_raw, list):
-                for item in all_services_raw:
-                    if 'services' in item and isinstance(item['services'], list):
-                        for service in item['services']:
-                            if str(service.get('service')) == service_id:
-                                service_to_add = service
-                                break
-                    if service_to_add:
+                for service in all_services_raw:
+                    if isinstance(service, dict) and str(service.get('id')) == service_id:
+                        service_to_add = service
                         break
 
         if service_to_add:
