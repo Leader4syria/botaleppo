@@ -46,6 +46,39 @@ def categories_route():
     categories = db.get_categories()
     return render_template('categories.html', categories=categories)
 
+@app.route('/categories/add', methods=['POST'])
+def add_category_route():
+    if 'user' not in session: return redirect(url_for('login'))
+    name = request.form['name']
+    parent_id = request.form.get('parent_id')
+    if parent_id == '': parent_id = None
+    else: parent_id = int(parent_id)
+    db.add_category(name, parent_id)
+    flash('تمت إضافة الفئة بنجاح!', 'success')
+    return redirect(url_for('categories_route'))
+
+@app.route('/categories/edit/<int:id>', methods=['GET', 'POST'])
+def edit_category_route(id):
+    if 'user' not in session: return redirect(url_for('login'))
+    if request.method == 'POST':
+        name = request.form['name']
+        parent_id = request.form.get('parent_id')
+        if parent_id == '': parent_id = None
+        else: parent_id = int(parent_id)
+        db.update_category(id, name, parent_id)
+        flash('تم تحديث الفئة بنجاح!', 'success')
+        return redirect(url_for('categories_route'))
+    category = db.get_category(id)
+    all_categories = db.get_categories()
+    return render_template('edit_category.html', category=category, all_categories=all_categories)
+
+@app.route('/categories/delete/<int:id>')
+def delete_category_route(id):
+    if 'user' not in session: return redirect(url_for('login'))
+    db.delete_category(id)
+    flash('تم حذف الفئة بنجاح!', 'warning')
+    return redirect(url_for('categories_route'))
+
 @app.route('/services')
 def services_route():
     if 'user' not in session:
