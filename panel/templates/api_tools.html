@@ -105,6 +105,10 @@
             <p>أنت على وشك استيراد الخدمة: <strong>{{ service.name }}</strong></p>
             <input type="hidden" name="service_id" value="{{ service.id }}">
             <div class="mb-3">
+                <label for="modalPrice-{{ service.id }}" class="form-label">السعر (يمكنك تعديله)</label>
+                <input type="number" step="any" class="form-control" id="modalPrice-{{ service.id }}" name="price" value="{{ service.price }}" required>
+            </div>
+            <div class="mb-3">
                 <label for="modalCategoryId-{{ service.id }}" class="form-label">اختر الفئة المحلية لحفظ الخدمة فيها:</label>
                 <select class="form-select" id="modalCategoryId-{{ service.id }}" name="category_id" required>
                     {% for category in local_categories %}

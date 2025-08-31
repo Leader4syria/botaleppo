@@ -146,8 +146,9 @@ def import_from_cache_route():
 
     service_id = request.form.get('service_id')
     category_id = request.form.get('category_id')
+    price = request.form.get('price')
 
-    if not service_id or not category_id:
+    if not service_id or not category_id or not price:
         flash('معلومات الخدمة أو الفئة غير كاملة.', 'danger')
         return redirect(url_for('api_tools_route'))
 
@@ -167,8 +168,10 @@ def import_from_cache_route():
                 name=service_to_add.get('name'),
                 category_id=int(category_id),
                 description='',
-                api_service_id=service_to_add.get('service'),
-                api_config_id=None
+                api_service_id=service_to_add.get('id'),
+                api_config_id=None,
+                price=float(price),
+                params=json.dumps(service_to_add.get('params', []))
             )
             flash(f"تم استيراد الخدمة '{service_to_add.get('name')}' بنجاح!", 'success')
         else:

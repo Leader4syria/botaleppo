@@ -19,14 +19,10 @@ class APIClient:
     def get_api_content(self):
         return self._get("/client/api/content/0")
 
-    def new_order(self, service_id, qty, player_id):
-        order_uuid = uuid.uuid4()
+    def new_order(self, service_id, params):
+        # Add a unique UUID to the order params
+        params['order_uuid'] = uuid.uuid4()
         endpoint = f"/client/api/newOrder/{service_id}/params"
-        params = {
-            "qty": qty,
-            "playerId": player_id,
-            "order_uuid": order_uuid
-        }
         return self._get(endpoint, params=params)
 
     def check_orders(self, user_id):

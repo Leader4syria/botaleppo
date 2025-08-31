@@ -5,15 +5,13 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import json
 
 def register_handlers(bot):
-    # This dictionary will temporarily store user order data during the conversation
-    user_order_data = {}
+    # This dictionary will temporarily store user conversation state
+    user_state = {}
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith('service:'))
-    def handle_service_selection(call):
+    def start_ordering_process(call):
+        user_id = call.from_user.id
         service_id = int(call.data.split(':')[1])
 
-        # We need to get service details from our DB, not the API
-        # The db.get_services() returns a list, let's find the specific one
         all_services = db.get_all_data().get('services', [])
         service = next((s for s in all_services if s['id'] == service_id), None)
 
@@ -21,100 +19,87 @@ def register_handlers(bot):
             bot.answer_callback_query(call.id, "Service not found.")
             return
 
-        user_id = call.from_user.id
-        user_order_data[user_id] = {'service': service}
-
-        description = service.get('description', 'No description available.')
-        text = f"<b>{service['name']}</b>\n\n{description}"
-
-        keyboard = InlineKeyboardMarkup()
-        order_button = InlineKeyboardButton("📝 طلب الخدمة", callback_data=f"order_start:{service_id}")
-        keyboard.add(order_button)
-
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=text,
-            reply_markup=keyboard,
-            parse_mode='HTML'
-        )
-
-    @bot.callback_query_handler(func=lambda call: call.data.startswith('order_start:'))
-    def handle_order_start(call):
-        bot.answer_callback_query(call.id)
-        msg = bot.send_message(call.message.chat.id, "الرجاء إدخال الكمية المطلوبة:")
-        bot.register_next_step_handler(msg, process_quantity_step)
-
-    def process_quantity_step(message):
+        # Safely load params
         try:
-            quantity = int(message.text)
-            if quantity <= 0:
-                msg = bot.reply_to(message, 'الكمية يجب أن تكون رقماً موجباً. الرجاء المحاولة مرة أخرى.')
-                bot.register_next_step_handler(msg, process_quantity_step)
-                return
+            params_to_ask = json.loads(service.get('params')) if service.get('params') else []
+        except (json.JSONDecodeError, TypeError):
+            params_to_ask = []
 
-            user_id = message.from_user.id
-            user_order_data[user_id]['quantity'] = quantity
-
-            msg = bot.reply_to(message, 'الآن، الرجاء إدخال معرف اللاعب (Player ID):')
-            bot.register_next_step_handler(msg, process_player_id_step)
-
-        except ValueError:
-            msg = bot.reply_to(message, 'الرجاء إدخال رقم صحيح للكمية.')
-            bot.register_next_step_handler(msg, process_quantity_step)
-
-    def process_player_id_step(message):
-        player_id = message.text
-        user_id = message.from_user.id
-
-        order_info = user_order_data.get(user_id)
-        if not order_info:
-            bot.reply_to(message, "حدث خطأ ما، يرجى المحاولة مرة أخرى من البداية.")
+        # If there are no params, we can't proceed with this logic.
+        # We can either order directly or inform the user. Let's inform.
+        if not params_to_ask:
+            bot.answer_callback_query(call.id, "لا توجد معلمات مطلوبة لهذه الخدمة، لا يمكن إكمال الطلب.", show_alert=True)
             return
 
-        service = order_info['service']
-        quantity = order_info['quantity']
+        user_state[user_id] = {
+            'service': service,
+            'params_to_ask': list(params_to_ask), # Make a copy
+            'collected_params': {}
+        }
 
-        bot.reply_to(message, f"جاري تقديم طلبك لخدمة '{service['name']}' بالكمية {quantity} ومعرف اللاعب {player_id}...")
+        ask_next_param(call.message)
 
-        # Dynamically set the base_url for the API client
+    def ask_next_param(message):
+        user_id = message.chat.id # In next_step_handler, it's chat.id
+        state = user_state.get(user_id)
+
+        if not state or not state['params_to_ask']:
+            # We are done, finalize the order
+            finalize_order(message)
+            return
+
+        next_param_name = state['params_to_ask'][0]
+        msg = bot.send_message(user_id, f"الرجاء إدخال '{next_param_name}':")
+        bot.register_next_step_handler(msg, process_next_param)
+
+    def process_next_param(message):
+        user_id = message.chat.id
+        state = user_state.get(user_id)
+
+        if not state:
+            bot.send_message(user_id, "حدث خطأ، يرجى المحاولة من جديد.")
+            return
+
+        param_name = state['params_to_ask'].pop(0)
+        state['collected_params'][param_name] = message.text
+
+        ask_next_param(message)
+
+    def finalize_order(message):
+        user_id = message.chat.id
+        state = user_state.get(user_id)
+
+        if not state:
+            bot.send_message(user_id, "حدث خطأ، يرجى المحاولة من جديد.")
+            return
+
+        service = state['service']
+        collected_params = state['collected_params']
+
+        bot.send_message(user_id, f"جاري تقديم طلبك لخدمة '{service['name']}'...")
+
         base_url = service.get('api_configs', {}).get('base_url')
         if not base_url:
-            bot.send_message(message.chat.id, "❌ خطأ فادح: لم يتم العثور على رابط API لهذه الخدمة.")
+            bot.send_message(user_id, "❌ خطأ فادح: لم يتم العثور على رابط API لهذه الخدمة.")
             return
 
         api_client = APIClient(base_url=base_url)
-
-        # Call the API to place the order
-        response = api_client.new_order(
-            service_id=service['api_service_id'],
-            qty=quantity,
-            player_id=player_id
-        )
+        response = api_client.new_order(service['api_service_id'], collected_params)
 
         if response and response.get('order_id'):
             order_id = response.get('order_id', 'N/A')
+            db.add_order(user_id, service['id'], order_id, 'Completed')
+            bot.send_message(user_id, f"✅ تم إنشاء طلبك بنجاح!\nرقم الطلب: {order_id}")
 
-            # Save the order to our local database
-            db.add_order(
-                user_id=user_id,
-                service_id=service['id'],
-                external_order_id=order_id,
-                status='Completed' # Or whatever status the API implies
-            )
-
-            reply_text = f"✅ تم إنشاء طلبك بنجاح!\nرقم الطلب: {order_id}"
-            bot.send_message(message.chat.id, reply_text)
-
-            # Notify admin of the new successful order
+            # Admin notification for success
             if ADMIN_ID:
                 user = message.from_user
                 contact_url = f"t.me/{user.username}" if user.username else f"tg://user?id={user.id}"
+                params_str = "\n".join([f"- {k}: {v}" for k, v in collected_params.items()])
                 admin_message = (
                     f"🎉 طلب جديد ناجح! 🎉\n\n"
                     f"الخدمة: {service['name']}\n"
-                    f"الكمية: {quantity}\n"
-                    f"معرف اللاعب: {player_id}\n"
+                    f"المعلمات:\n{params_str}\n"
                     f"مقدم الطلب: {user.first_name} (@{user.username or 'N/A'})\n"
                     f"معرف الطلب: {order_id}"
                 )
@@ -123,31 +108,27 @@ def register_handlers(bot):
                 keyboard.add(contact_button)
                 bot.send_message(ADMIN_ID, admin_message, reply_markup=keyboard)
         else:
-            # Order failed, check for insufficient funds
             error_message = str(response).lower()
             if "insufficient funds" in error_message:
-                # Notify admin
-                admin_message = (
-                    f"⚠️ فشل طلب بسبب عدم كفاية الرصيد ⚠️\n\n"
-                    f"الخدمة: {service['name']} (ID: {service['api_service_id']})\n"
-                    f"الكمية: {quantity}\n"
-                    f"معرف اللاعب: {player_id}\n"
-                    f"معرف المستخدم: {user_id}\n\n"
-                    f"الرجاء معالجة الطلب يدويًا."
-                )
                 if ADMIN_ID:
+                    user = message.from_user
+                    params_str = "\n".join([f"- {k}: {v}" for k, v in collected_params.items()])
+                    admin_message = (
+                        f"⚠️ فشل طلب بسبب عدم كفاية الرصيد ⚠️\n\n"
+                        f"الخدمة: {service['name']}\n"
+                        f"المعلمات:\n{params_str}\n"
+                        f"مقدم الطلب: {user.first_name} (@{user.username or 'N/A'})\n"
+                        f"الرجاء معالجة الطلب يدويًا."
+                    )
                     bot.send_message(ADMIN_ID, admin_message)
-
-                # Notify user
-                user_reply = "⏳ لقد فشل طلبك بسبب مشكلة في الرصيد، ولكن تم إرسال تفاصيل طلبك إلى المسؤول لمعالجته يدويًا. سيتم إعلامك عند اكتماله."
-                bot.send_message(message.chat.id, user_reply)
+                bot.send_message(user_id, "⏳ فشل طلبك ولكن تم إرساله للمسؤول.")
             else:
-                # Generic error for other failures
-                reply_text = "❌ حدث خطأ أثناء إنشاء الطلب. يرجى المحاولة مرة أخرى لاحقاً."
-                bot.send_message(message.chat.id, reply_text)
+                bot.send_message(user_id, f"❌ حدث خطأ أثناء إنشاء الطلب.\nالاستجابة: `{response}`")
 
-        # Clean up user data
-        if user_id in user_order_data:
-            del user_order_data[user_id]
+        if user_id in user_state:
+            del user_state[user_id]
 
-    # The /myorders command is now handled by the menu callback
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('service:'))
+    def handle_service_selection(call):
+        bot.answer_callback_query(call.id)
+        start_ordering_process(call)

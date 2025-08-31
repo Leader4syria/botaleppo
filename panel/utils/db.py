@@ -56,14 +56,16 @@ def get_service(id):
         print(f"Error fetching service: {e}")
         return None
 
-def add_service(name, category_id, description, api_service_id, api_config_id):
+def add_service(name, category_id, description, api_service_id, api_config_id, price, params):
     try:
         response = supabase.table('services').insert({
             'name': name,
             'category_id': category_id,
             'description': description,
             'api_service_id': api_service_id,
-            'api_config_id': api_config_id
+            'api_config_id': api_config_id,
+            'price': price,
+            'params': params
         }).execute()
         return response.data
     except Exception as e:
