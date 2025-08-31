@@ -5,8 +5,6 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import json
 
 def register_handlers(bot):
-    api_client = APIClient()
-
     # This dictionary will temporarily store user order data during the conversation
     user_order_data = {}
 
@@ -78,6 +76,14 @@ def register_handlers(bot):
         quantity = order_info['quantity']
 
         bot.reply_to(message, f"جاري تقديم طلبك لخدمة '{service['name']}' بالكمية {quantity} ومعرف اللاعب {player_id}...")
+
+        # Dynamically set the base_url for the API client
+        base_url = service.get('api_configs', {}).get('base_url')
+        if not base_url:
+            bot.send_message(message.chat.id, "❌ خطأ فادح: لم يتم العثور على رابط API لهذه الخدمة.")
+            return
+
+        api_client = APIClient(base_url=base_url)
 
         # Call the API to place the order
         response = api_client.new_order(

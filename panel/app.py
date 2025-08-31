@@ -120,18 +120,16 @@ def api_configs_route():
 
 @app.route('/apis/add', methods=['POST'])
 def add_api_config_route():
-    # ... (omitted for brevity, no changes)
     if 'user' not in session: return redirect(url_for('login'))
-    db.add_api_config(api_name=request.form['api_name'], base_url=request.form['base_url'], auth_token=request.form.get('auth_token'))
+    db.add_api_config(api_name=request.form['api_name'], base_url=request.form['base_url'])
     flash('تمت إضافة تكوين API بنجاح!', 'success')
     return redirect(url_for('api_configs_route'))
 
 @app.route('/apis/edit/<int:id>', methods=['GET', 'POST'])
 def edit_api_config_route(id):
-    # ... (omitted for brevity, no changes)
     if 'user' not in session: return redirect(url_for('login'))
     if request.method == 'POST':
-        db.update_api_config(id=id, api_name=request.form['api_name'], base_url=request.form['base_url'], auth_token=request.form.get('auth_token'))
+        db.update_api_config(id=id, api_name=request.form['api_name'], base_url=request.form['base_url'])
         flash('تم تحديث تكوين API بنجاح!', 'success')
         return redirect(url_for('api_configs_route'))
     config = db.get_api_config(id)
@@ -163,8 +161,8 @@ def browse_api_route():
         api_config = db.get_api_config(api_id)
         if api_config:
             try:
-                # Start with the saved token
-                headers = {'api-token': api_config.get('auth_token')} if api_config.get('auth_token') else {}
+                # Start with the hardcoded global token
+                headers = {'api-token': '4b7b7a650e3d0004b45bf260d5202d9fad1dd53fab9a6fbd'}
 
                 # Parse and merge extra headers
                 if extra_headers_str:
@@ -231,8 +229,8 @@ def import_single_service_route():
 
     # Re-fetch to find the service to import
     try:
-        headers = {api_config['auth_header_name']: api_config['auth_token']} if api_config.get('auth_header_name') else {}
-        api_url = api_config['base_url'] # This should be dynamic
+        headers = {'api-token': '4b7b7a650e3d0004b45bf260d5202d9fad1dd53fab9a6fbd'}
+        api_url = api_config['base_url']
         response = requests.get(api_url, headers=headers, timeout=10)
         response.raise_for_status()
         content = response.json()
@@ -253,7 +251,8 @@ def import_single_service_route():
                 name=service_to_add.get('name'),
                 category_id=int(category_id),
                 description='',
-                api_service_id=service_to_add.get('service')
+                api_service_id=service_to_add.get('service'),
+                api_config_id=api_id
             )
             flash(f"تم استيراد الخدمة '{service_to_add.get('name')}' بنجاح!", 'success')
         else:

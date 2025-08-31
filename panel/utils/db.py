@@ -56,26 +56,28 @@ def get_service(id):
         print(f"Error fetching service: {e}")
         return None
 
-def add_service(name, category_id, description, api_service_id):
+def add_service(name, category_id, description, api_service_id, api_config_id):
     try:
         response = supabase.table('services').insert({
             'name': name,
             'category_id': category_id,
             'description': description,
-            'api_service_id': api_service_id
+            'api_service_id': api_service_id,
+            'api_config_id': api_config_id
         }).execute()
         return response.data
     except Exception as e:
         print(f"Error adding service: {e}")
         return None
 
-def update_service(id, name, category_id, description, api_service_id):
+def update_service(id, name, category_id, description, api_service_id, api_config_id):
     try:
         response = supabase.table('services').update({
             'name': name,
             'category_id': category_id,
             'description': description,
-            'api_service_id': api_service_id
+            'api_service_id': api_service_id,
+            'api_config_id': api_config_id
         }).eq('id', id).execute()
         return response.data
     except Exception as e:
@@ -108,24 +110,22 @@ def get_api_config(id):
         print(f"Error fetching API config: {e}")
         return None
 
-def add_api_config(api_name, base_url, auth_token):
+def add_api_config(api_name, base_url):
     try:
         response = supabase.table('api_configs').insert({
             'api_name': api_name,
-            'base_url': base_url,
-            'auth_token': auth_token
+            'base_url': base_url
         }).execute()
         return response.data
     except Exception as e:
         print(f"Error adding API config: {e}")
         return None
 
-def update_api_config(id, api_name, base_url, auth_token):
+def update_api_config(id, api_name, base_url):
     try:
         response = supabase.table('api_configs').update({
             'api_name': api_name,
-            'base_url': base_url,
-            'auth_token': auth_token
+            'base_url': base_url
         }).eq('id', id).execute()
         return response.data
     except Exception as e:

@@ -3,7 +3,7 @@ from bot.config import API_TOKEN
 import uuid
 
 class APIClient:
-    def __init__(self, base_url="https://api.oranosmarket.com"):
+    def __init__(self, base_url=None):
         self.base_url = base_url
         self.headers = {"api-token": API_TOKEN}
 
