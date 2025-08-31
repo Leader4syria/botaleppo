@@ -1,0 +1,59 @@
+/* A modern, clean color palette */
+:root {
+    --primary-color: #4A90E2; /* A nice blue */
+    --secondary-color: #50E3C2; /* A minty green for accents */
+    --dark-color: #4A4A4A;
+    --light-color: #F9F9F9;
+    --body-font-family: 'Cairo', sans-serif;
+}
+
+body {
+    font-family: var(--body-font-family);
+    background-color: var(--light-color);
+}
+
+.navbar-dark {
+    background-color: var(--dark-color) !important;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.btn-success {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+    color: #fff;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.card {
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f0f8ff;
+    cursor: pointer;
+}
+
+.modal-header {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}

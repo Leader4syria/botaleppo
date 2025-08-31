@@ -184,9 +184,7 @@ def api_explorer_route():
     if 'user' not in session:
         return redirect(url_for('login'))
 
-    response_data = session.pop('response_data', None)
-    parsed_services = session.pop('parsed_services', None)
-
+    parsed_services = None
     if request.method == 'POST':
         try:
             url = request.form['url']
@@ -208,7 +206,6 @@ def api_explorer_route():
             response = requests.request(method, url, **kwargs)
             response.raise_for_status()
             response_data = response.json()
-            session['response_data'] = response_data
 
             # Try to parse services from the response
             if isinstance(response_data, list):
@@ -221,52 +218,53 @@ def api_explorer_route():
                                     'id': service.get('service'),
                                     'name': service.get('name'),
                                     'price': service.get('price'),
-                                    # Description is left empty as requested
                                     'description': ''
                                 })
-                session['parsed_services'] = parsed_services
-
-        except requests.exceptions.RequestException as e:
-            response_data = {'error': 'Request failed', 'details': str(e)}
-        except json.JSONDecodeError:
-            response_data = {'error': 'Invalid JSON in body'}
         except Exception as e:
-            response_data = {'error': 'An unexpected error occurred', 'details': str(e)}
-
-        return redirect(url_for('api_explorer_route'))
+            flash(f"API Request Failed: {e}", 'danger')
 
     api_configs = db.get_api_configs()
     local_categories = db.get_categories()
-    return render_template('api_explorer.html', api_configs=api_configs, response_data=response_data, parsed_services=parsed_services, local_categories=local_categories)
+    return render_template('api_explorer.html', api_configs=api_configs, parsed_services=parsed_services, local_categories=local_categories)
 
-@app.route('/import_services', methods=['POST'])
-def import_services_route():
+@app.route('/import_single_service', methods=['POST'])
+def import_single_service_route():
     if 'user' not in session:
         return redirect(url_for('login'))
 
-    selected_ids = request.form.getlist('selected_services')
+    service_id_to_import = request.form.get('service_id')
     category_id = request.form.get('category_id')
 
-    if not selected_ids or not category_id:
-        flash('الرجاء تحديد خدمة واحدة على الأقل وفئة.', 'warning')
+    if not service_id_to_import or not category_id:
+        flash('معلومات الخدمة أو الفئة غير كاملة.', 'danger')
         return redirect(url_for('api_explorer_route'))
 
-    # Get the full service details from the session
-    all_services = session.get('parsed_services', [])
+    # To remain stateless, we must re-fetch the API content to find the service details
+    api_client = APIClient()
+    content = api_client.get_api_content()
+    service_to_add = None
 
-    services_to_import = [s for s in all_services if str(s.get('id')) in selected_ids]
+    if content and isinstance(content, list):
+        for category in content:
+            if 'services' in category and isinstance(category['services'], list):
+                for service in category['services']:
+                    if str(service.get('service')) == service_id_to_import:
+                        service_to_add = service
+                        break
+            if service_to_add:
+                break
 
-    count = 0
-    for service in services_to_import:
+    if service_to_add:
         db.add_service(
-            name=service.get('name'),
+            name=service_to_add.get('name'),
             category_id=int(category_id),
-            description=service.get('description', ''),
-            api_service_id=service.get('id')
+            description='', # Empty as requested
+            api_service_id=service_to_add.get('service')
         )
-        count += 1
+        flash(f"تم استيراد الخدمة '{service_to_add.get('name')}' بنجاح!", 'success')
+    else:
+        flash(f"لم يتم العثور على الخدمة بالمعرف {service_id_to_import} في استجابة الـ API.", 'danger')
 
-    flash(f"تم استيراد {count} خدمة بنجاح!", 'success')
     return redirect(url_for('services_route'))
 
 
