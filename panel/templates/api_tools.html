@@ -102,8 +102,11 @@
       </div>
       <form action="{{ url_for('import_from_cache_route') }}" method="POST">
         <div class="modal-body">
-            <p>أنت على وشك استيراد الخدمة: <strong>{{ service.name }}</strong></p>
             <input type="hidden" name="service_id" value="{{ service.id }}">
+            <div class="mb-3">
+                <label for="modalName-{{ service.id }}" class="form-label">اسم الخدمة (يمكنك تعديله)</label>
+                <input type="text" class="form-control" id="modalName-{{ service.id }}" name="name" value="{{ service.name }}" required>
+            </div>
             <div class="mb-3">
                 <label for="modalPrice-{{ service.id }}" class="form-label">السعر (يمكنك تعديله)</label>
                 <input type="number" step="any" class="form-control" id="modalPrice-{{ service.id }}" name="price" value="{{ service.price }}" required>

@@ -147,9 +147,10 @@ def import_from_cache_route():
     service_id = request.form.get('service_id')
     category_id = request.form.get('category_id')
     price = request.form.get('price')
+    name = request.form.get('name')
 
-    if not service_id or not category_id or not price:
-        flash('معلومات الخدمة أو الفئة غير كاملة.', 'danger')
+    if not all([service_id, category_id, price, name]):
+        flash('جميع الحقول مطلوبة.', 'danger')
         return redirect(url_for('api_tools_route'))
 
     service_to_add = None
@@ -165,7 +166,7 @@ def import_from_cache_route():
 
         if service_to_add:
             db.add_service(
-                name=service_to_add.get('name'),
+                name=name, # Use the name from the form
                 category_id=int(category_id),
                 description='',
                 api_service_id=service_to_add.get('id'),

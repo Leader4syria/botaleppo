@@ -68,8 +68,8 @@ def register_handlers(bot):
         user_id = message.chat.id
         state = user_state.get(user_id)
 
-        if not state:
-            bot.send_message(user_id, "حدث خطأ، يرجى المحاولة من جديد.")
+        if not state or 'service' not in state:
+            bot.send_message(user_id, "حدث خطأ أو انتهت مهلة الجلسة. يرجى إعادة بدء الطلب من قائمة الخدمات.")
             return
 
         service = state['service']
