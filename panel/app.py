@@ -184,7 +184,9 @@ def api_explorer_route():
     if 'user' not in session:
         return redirect(url_for('login'))
 
-    response_data = None
+    response_data = session.pop('response_data', None)
+    parsed_services = session.pop('parsed_services', None)
+
     if request.method == 'POST':
         try:
             url = request.form['url']
@@ -206,6 +208,23 @@ def api_explorer_route():
             response = requests.request(method, url, **kwargs)
             response.raise_for_status()
             response_data = response.json()
+            session['response_data'] = response_data
+
+            # Try to parse services from the response
+            if isinstance(response_data, list):
+                parsed_services = []
+                for item in response_data:
+                    if isinstance(item, dict) and 'services' in item:
+                        for service in item.get('services', []):
+                             if isinstance(service, dict) and 'service' in service and 'name' in service:
+                                parsed_services.append({
+                                    'id': service.get('service'),
+                                    'name': service.get('name'),
+                                    'price': service.get('price'),
+                                    # Description is left empty as requested
+                                    'description': ''
+                                })
+                session['parsed_services'] = parsed_services
 
         except requests.exceptions.RequestException as e:
             response_data = {'error': 'Request failed', 'details': str(e)}
@@ -214,8 +233,41 @@ def api_explorer_route():
         except Exception as e:
             response_data = {'error': 'An unexpected error occurred', 'details': str(e)}
 
+        return redirect(url_for('api_explorer_route'))
+
     api_configs = db.get_api_configs()
-    return render_template('api_explorer.html', api_configs=api_configs, response_data=response_data)
+    local_categories = db.get_categories()
+    return render_template('api_explorer.html', api_configs=api_configs, response_data=response_data, parsed_services=parsed_services, local_categories=local_categories)
+
+@app.route('/import_services', methods=['POST'])
+def import_services_route():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    selected_ids = request.form.getlist('selected_services')
+    category_id = request.form.get('category_id')
+
+    if not selected_ids or not category_id:
+        flash('الرجاء تحديد خدمة واحدة على الأقل وفئة.', 'warning')
+        return redirect(url_for('api_explorer_route'))
+
+    # Get the full service details from the session
+    all_services = session.get('parsed_services', [])
+
+    services_to_import = [s for s in all_services if str(s.get('id')) in selected_ids]
+
+    count = 0
+    for service in services_to_import:
+        db.add_service(
+            name=service.get('name'),
+            category_id=int(category_id),
+            description=service.get('description', ''),
+            api_service_id=service.get('id')
+        )
+        count += 1
+
+    flash(f"تم استيراد {count} خدمة بنجاح!", 'success')
+    return redirect(url_for('services_route'))
 
 
 if __name__ == '__main__':

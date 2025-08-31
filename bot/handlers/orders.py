@@ -1,6 +1,8 @@
 from bot.utils.api import APIClient
 from bot.utils import db
+from bot.config import ADMIN_ID
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+import json
 
 def register_handlers(bot):
     api_client = APIClient()
@@ -84,13 +86,33 @@ def register_handlers(bot):
             player_id=player_id
         )
 
-        if response:
+        if response and response.get('order_id'):
             order_id = response.get('order_id', 'N/A')
             reply_text = f"✅ تم إنشاء طلبك بنجاح!\nرقم الطلب: {order_id}"
+            bot.send_message(message.chat.id, reply_text)
         else:
-            reply_text = "❌ حدث خطأ أثناء إنشاء الطلب. يرجى المحاولة مرة أخرى لاحقاً."
+            # Order failed, check for insufficient funds
+            error_message = str(response).lower()
+            if "insufficient funds" in error_message:
+                # Notify admin
+                admin_message = (
+                    f"⚠️ فشل طلب بسبب عدم كفاية الرصيد ⚠️\n\n"
+                    f"الخدمة: {service['name']} (ID: {service['api_service_id']})\n"
+                    f"الكمية: {quantity}\n"
+                    f"معرف اللاعب: {player_id}\n"
+                    f"معرف المستخدم: {user_id}\n\n"
+                    f"الرجاء معالجة الطلب يدويًا."
+                )
+                if ADMIN_ID:
+                    bot.send_message(ADMIN_ID, admin_message)
 
-        bot.send_message(message.chat.id, reply_text)
+                # Notify user
+                user_reply = "⏳ لقد فشل طلبك بسبب مشكلة في الرصيد، ولكن تم إرسال تفاصيل طلبك إلى المسؤول لمعالجته يدويًا. سيتم إعلامك عند اكتماله."
+                bot.send_message(message.chat.id, user_reply)
+            else:
+                # Generic error for other failures
+                reply_text = "❌ حدث خطأ أثناء إنشاء الطلب. يرجى المحاولة مرة أخرى لاحقاً."
+                bot.send_message(message.chat.id, reply_text)
 
         # Clean up user data
         if user_id in user_order_data:
