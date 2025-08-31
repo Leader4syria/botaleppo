@@ -151,7 +151,6 @@ def browse_api_route():
 
     api_id = request.args.get('api_id', type=int)
     page = request.args.get('page', 1, type=int)
-    extra_headers_str = request.args.get('extra_headers', '')
 
     all_services = []
     paginated_services = []
@@ -161,15 +160,8 @@ def browse_api_route():
         api_config = db.get_api_config(api_id)
         if api_config:
             try:
-                # Start with the hardcoded global token
+                # Use the hardcoded global token
                 headers = {'api-token': '4b7b7a650e3d0004b45bf260d5202d9fad1dd53fab9a6fbd'}
-
-                # Parse and merge extra headers
-                if extra_headers_str:
-                    for line in extra_headers_str.strip().split('\n'):
-                        if ':' in line:
-                            key, value = line.split(':', 1)
-                            headers[key.strip()] = value.strip()
 
                 api_url = api_config['base_url']
                 response = requests.get(api_url, headers=headers, timeout=10)
@@ -207,7 +199,8 @@ def browse_api_route():
                            local_categories=local_categories,
                            selected_api_id=api_id,
                            current_page=page,
-                           total_pages=total_pages)
+                           total_pages=total_pages,
+                           response_data=response_data)
 
 @app.route('/import_single_service', methods=['POST'])
 def import_single_service_route():
