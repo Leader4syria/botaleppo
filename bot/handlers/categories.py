@@ -15,15 +15,19 @@ def find_category(categories, category_id):
             return cat
     return None
 
-def show_main_categories(bot, chat_id):
+def show_main_categories(bot, message):
     data = db.get_all_data()
-    if not data.get('categories'):
-        bot.send_message(chat_id, "عذراً، لا توجد أقسام معرفة حالياً.")
-        return
 
+    text = "اختر فئة:"
     top_level_categories = find_children_categories(data.get('categories', []), None)
-    keyboard = generate_keyboard(top_level_categories, 'category', back_callback_data=None)
-    bot.send_message(chat_id, "اختر فئة:", reply_markup=keyboard)
+
+    if not top_level_categories:
+        text = "عذراً، لا توجد أقسام معرفة حالياً."
+
+    # The back button from the top-level categories should go back to the main menu
+    keyboard = generate_keyboard(top_level_categories, 'category', back_callback_data="menu:back_to_main")
+
+    bot.edit_message_text(text, chat_id=message.chat.id, message_id=message.message_id, reply_markup=keyboard)
 
 def register_handlers(bot):
     @bot.callback_query_handler(func=lambda call: call.data.startswith('category:'))

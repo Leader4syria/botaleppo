@@ -17,8 +17,9 @@ def show_my_orders(bot, message):
     else:
         reply_text += "لا يوجد لديك طلبات حالية."
 
-    # To avoid editing a message with a button to a message without, we send a new one
-    bot.send_message(message.chat.id, reply_text, parse_mode='Markdown')
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("⬅️ العودة إلى القائمة الرئيسية", callback_data="menu:back_to_main"))
+    bot.edit_message_text(reply_text, chat_id=message.chat.id, message_id=message.message_id, parse_mode='Markdown', reply_markup=keyboard)
 
 
 def register_handlers(bot):
@@ -28,13 +29,9 @@ def register_handlers(bot):
     def handle_menu_callbacks(call):
         action = call.data.split(':')[1]
 
-        # Acknowledge the callback immediately
-        bot.answer_callback_query(call.id)
-
         if action == 'services':
-            # Delete the menu and show the categories
-            bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
-            show_main_categories(bot, call.message.chat.id)
+            # Edit the message to show the top-level categories
+            show_main_categories(bot, call.message) # Needs to be adapted to take call.message
 
         elif action == 'my_info':
             user = call.from_user
