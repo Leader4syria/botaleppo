@@ -1,0 +1,5 @@
+py-telegram-bot-api
+python-dotenv
+requests
+supabase
+flask

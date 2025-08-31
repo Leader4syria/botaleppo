@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h2>تعديل القسم</h2>
+    <form method="post">
+        <label for="name">اسم القسم:</label>
+        <input type="text" id="name" name="name" value="{{ category.name }}" required>
+        <label for="parent_id">القسم الأب (اختياري):</label>
+        <select id="parent_id" name="parent_id">
+            <option value="">لا يوجد</option>
+            {% for cat in all_categories %}
+                <option value="{{ cat.id }}" {% if cat.id == category.parent_id %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">حفظ التعديلات</button>
+    </form>
+{% endblock %}

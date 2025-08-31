@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h2>إدارة الخدمات</h2>
+
+    <form method="post" action="{{ url_for('add_service_route') }}">
+        <h3>إضافة خدمة جديدة</h3>
+        <label for="name">اسم الخدمة:</label>
+        <input type="text" id="name" name="name" required>
+        <label for="category_id">القسم:</label>
+        <select id="category_id" name="category_id" required>
+            {% for category in categories %}
+                <option value="{{ category.id }}">{{ category.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">إضافة</button>
+    </form>
+
+    <hr>
+
+    <h3>الخدمات الحالية</h3>
+    <ul>
+        {% for service in services %}
+            <li>
+                {{ service.name }} (قسم: {{ service.categories.name if service.categories else 'غير محدد' }})
+                <a href="{{ url_for('edit_service_route', id=service.id) }}">تعديل</a>
+                <a href="{{ url_for('delete_service_route', id=service.id) }}" onclick="return confirm('هل أنت متأكد؟')">حذف</a>
+            </li>
+        {% else %}
+            <li>لا توجد خدمات لعرضها.</li>
+        {% endfor %}
+    </ul>
+{% endblock %}
