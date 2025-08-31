@@ -125,61 +125,97 @@ def delete_service_route(id):
     db.delete_service(id)
     return redirect(url_for('services_route'))
 
-@app.route('/import', methods=['GET', 'POST'])
-def import_route():
+# --- API Config Routes ---
+
+@app.route('/apis')
+def api_configs_route():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    configs = db.get_api_configs()
+    return render_template('apis.html', api_configs=configs)
+
+@app.route('/apis/add', methods=['POST'])
+def add_api_config_route():
     if 'user' not in session:
         return redirect(url_for('login'))
 
-    api_client = APIClient()
+    db.add_api_config(
+        api_name=request.form['api_name'],
+        base_url=request.form['base_url'],
+        auth_header_name=request.form.get('auth_header_name'),
+        auth_token=request.form.get('auth_token')
+    )
+    flash('تمت إضافة تكوين API بنجاح!', 'success')
+    return redirect(url_for('api_configs_route'))
+
+@app.route('/apis/edit/<int:id>', methods=['GET', 'POST'])
+def edit_api_config_route(id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
 
     if request.method == 'POST':
-        selected_ids = request.form.getlist('selected_services')
-        category_id = request.form.get('category_id')
+        db.update_api_config(
+            id=id,
+            api_name=request.form['api_name'],
+            base_url=request.form['base_url'],
+            auth_header_name=request.form.get('auth_header_name'),
+            auth_token=request.form.get('auth_token')
+        )
+        flash('تم تحديث تكوين API بنجاح!', 'success')
+        return redirect(url_for('api_configs_route'))
 
-        if not selected_ids or not category_id:
-            flash('الرجاء تحديد خدمة واحدة على الأقل وفئة.', 'warning')
-            return redirect(url_for('import_route'))
+    config = db.get_api_config(id)
+    return render_template('edit_api.html', config=config)
 
-        api_services = session.get('api_services', [])
+@app.route('/apis/delete/<int:id>')
+def delete_api_config_route(id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    db.delete_api_config(id)
+    flash('تم حذف تكوين API بنجاح!', 'warning')
+    return redirect(url_for('api_configs_route'))
 
-        services_to_import = [s for s in api_services if str(s.get('id')) in selected_ids]
 
-        count = 0
-        for service in services_to_import:
-            # Assuming the API response has 'id', 'name', and 'description'
-            db.add_service(
-                name=service.get('name'),
-                category_id=int(category_id),
-                description=service.get('description', ''),
-                api_service_id=service.get('id')
-            )
-            count += 1
+import requests
+import json
 
-        session.pop('api_services', None) # Clear session cache
-        flash(f"تم استيراد {count} خدمة بنجاح!", 'success')
-        return redirect(url_for('services_route'))
+@app.route('/api_explorer', methods=['GET', 'POST'])
+def api_explorer_route():
+    if 'user' not in session:
+        return redirect(url_for('login'))
 
-    api_services_data = None
-    if 'fetch' in request.args:
-        content = api_client.get_api_content()
-        all_services = []
-        if content and isinstance(content, list):
-            for category in content:
-                if 'services' in category and isinstance(category['services'], list):
-                    for service in category['services']:
-                        # The API response has 'service' as id, 'name', 'rate', 'min', 'max', 'desc', 'category'
-                        # I need to map these to my column names.
-                        all_services.append({
-                            'id': service.get('service'),
-                            'name': service.get('name'),
-                            'description': service.get('desc')
-                        })
+    response_data = None
+    if request.method == 'POST':
+        try:
+            url = request.form['url']
+            method = request.form['method']
+            headers_str = request.form.get('headers', '')
+            body_str = request.form.get('body', '')
 
-        session['api_services'] = all_services
-        api_services_data = all_services
+            headers = {}
+            if headers_str:
+                for line in headers_str.strip().split('\n'):
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        headers[key.strip()] = value.strip()
 
-    local_categories = db.get_categories()
-    return render_template('import.html', api_services=api_services_data, local_categories=local_categories)
+            kwargs = {'headers': headers, 'timeout': 10}
+            if method == 'POST' and body_str:
+                kwargs['json'] = json.loads(body_str)
+
+            response = requests.request(method, url, **kwargs)
+            response.raise_for_status()
+            response_data = response.json()
+
+        except requests.exceptions.RequestException as e:
+            response_data = {'error': 'Request failed', 'details': str(e)}
+        except json.JSONDecodeError:
+            response_data = {'error': 'Invalid JSON in body'}
+        except Exception as e:
+            response_data = {'error': 'An unexpected error occurred', 'details': str(e)}
+
+    api_configs = db.get_api_configs()
+    return render_template('api_explorer.html', api_configs=api_configs, response_data=response_data)
 
 
 if __name__ == '__main__':

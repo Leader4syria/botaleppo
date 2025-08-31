@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+<style>
+    .response-box {
+        background-color: #282c34;
+        color: #abb2bf;
+        padding: 1rem;
+        border-radius: 5px;
+        max-height: 70vh;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+    .response-box pre {
+        margin: 0;
+    }
+</style>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">مستكشف API</h1>
+</div>
+
+<form id="api-request-form" method="post">
+    <div class="row">
+        <!-- Request Column -->
+        <div class="col-md-6">
+            <h4>الطلب</h4>
+            <div class="card">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="api_config_id" class="form-label">اختر تكوين API المحفوظ</label>
+                        <select class="form-select" id="api_config_id" name="api_config_id">
+                            <option value="">-- يدوي --</option>
+                            {% for config in api_configs %}
+                                <option value="{{ config.id }}" data-url="{{ config.base_url }}" data-header="{{ config.auth_header_name }}" data-token="{{ config.auth_token }}">{{ config.api_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="method" class="form-label">الطريقة</label>
+                        <select class="form-select" id="method" name="method">
+                            <option>GET</option>
+                            <option>POST</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="url" class="form-label">عنوان URL</label>
+                        <input type="text" class="form-control" id="url" name="url" placeholder="https://api.example.com/data" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="headers" class="form-label">Headers (كل واحد في سطر)</label>
+                        <textarea class="form-control" id="headers" name="headers" rows="4"></textarea>
+                    </div>
+                    <div class="mb-3" id="body-container" style="display: none;">
+                        <label for="body" class="form-label">Body (JSON)</label>
+                        <textarea class="form-control" id="body" name="body" rows="6"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">إرسال الطلب</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Response Column -->
+        <div class="col-md-6">
+            <h4>الاستجابة</h4>
+            <div class="response-box">
+                <pre><code class="json">{{ response_data | tojson(indent=2) if response_data else 'سيتم عرض استجابة الخادم هنا...' }}</code></pre>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+<script>
+    // Show/hide body based on method
+    const methodSelect = document.getElementById('method');
+    const bodyContainer = document.getElementById('body-container');
+    methodSelect.addEventListener('change', function() {
+        bodyContainer.style.display = this.value === 'POST' ? 'block' : 'none';
+    });
+
+    // Pre-fill form from saved config
+    const configSelect = document.getElementById('api_config_id');
+    configSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (!selectedOption.value) {
+            document.getElementById('url').value = '';
+            document.getElementById('headers').value = '';
+            return;
+        }
+        const url = selectedOption.getAttribute('data-url');
+        const header = selectedOption.getAttribute('data-header');
+        const token = selectedOption.getAttribute('data-token');
+
+        document.getElementById('url').value = url;
+        if (header && token) {
+            document.getElementById('headers').value = `${header}: ${token}`;
+        } else {
+            document.getElementById('headers').value = '';
+        }
+    });
+</script>
+{% endblock %}
