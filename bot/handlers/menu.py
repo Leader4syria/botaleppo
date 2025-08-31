@@ -3,17 +3,19 @@ from bot.utils.decorators import check_subscription
 from bot.handlers.categories import show_main_categories
 from bot.utils.api import APIClient
 
+from bot.utils import db
+
 def show_my_orders(bot, message):
-    api_client = APIClient()
     user_id = message.chat.id
-    orders = api_client.check_orders(user_id)
+    orders = db.get_orders_for_user(user_id)
 
     reply_text = "📦 **طلباتي**\n\n"
-    if orders and isinstance(orders, list) and orders:
+    if orders:
         for order in orders:
-            order_id = order.get('id', 'N/A')
-            status = order.get('status', 'N/A')
-            reply_text += f"- طلب رقم {order_id}: {status}\n"
+            service_name = order.get('services', {}).get('name', 'N/A')
+            order_status = order.get('status', 'pending')
+            order_date = order.get('created_at').split('T')[0]
+            reply_text += f"- {service_name} ({order_status}) - {order_date}\n"
     else:
         reply_text += "لا يوجد لديك طلبات حالية."
 

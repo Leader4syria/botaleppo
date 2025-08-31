@@ -88,6 +88,15 @@ def register_handlers(bot):
 
         if response and response.get('order_id'):
             order_id = response.get('order_id', 'N/A')
+
+            # Save the order to our local database
+            db.add_order(
+                user_id=user_id,
+                service_id=service['id'],
+                external_order_id=order_id,
+                status='Completed' # Or whatever status the API implies
+            )
+
             reply_text = f"✅ تم إنشاء طلبك بنجاح!\nرقم الطلب: {order_id}"
             bot.send_message(message.chat.id, reply_text)
 

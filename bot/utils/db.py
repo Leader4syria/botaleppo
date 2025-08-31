@@ -27,3 +27,25 @@ def add_user(user_id, first_name, username):
     except Exception as e:
         print(f"Error adding user: {e}")
         return None
+
+def add_order(user_id, service_id, external_order_id, status='pending'):
+    try:
+        response = supabase.table('orders').insert({
+            'user_id': user_id,
+            'service_id': service_id,
+            'external_order_id': external_order_id,
+            'status': status
+        }).execute()
+        return response.data
+    except Exception as e:
+        print(f"Error adding order: {e}")
+        return None
+
+def get_orders_for_user(user_id):
+    try:
+        # Fetching order and the related service name
+        response = supabase.table('orders').select('*, services(name)').eq('user_id', user_id).order('created_at', desc=True).execute()
+        return response.data
+    except Exception as e:
+        print(f"Error fetching orders for user: {e}")
+        return []
