@@ -3,34 +3,14 @@
 {% block content %}
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
         <h1 class="h2">إدارة الخدمات</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('import_route') }}" class="btn btn-sm btn-outline-secondary">
+                استيراد خدمات جديدة من API
+            </a>
+        </div>
     </div>
 
-    <div class="card">
-        <div class="card-header">
-            إضافة خدمة جديدة
-        </div>
-        <div class="card-body">
-            <form method="post" action="{{ url_for('add_service_route') }}">
-                <div class="row">
-                    <div class="col-md-5 mb-3">
-                        <label for="name" class="form-label">اسم الخدمة</label>
-                        <input type="text" class="form-control" id="name" name="name" required>
-                    </div>
-                    <div class="col-md-5 mb-3">
-                        <label for="category_id" class="form-label">القسم</label>
-                        <select class="form-select" id="category_id" name="category_id" required>
-                            {% for category in categories %}
-                                <option value="{{ category.id }}">{{ category.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-2 mb-3 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100">إضافة</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
+    <p>هذه هي الخدمات المتاحة حالياً في البوت الخاص بك. يمكنك تعديلها أو حذفها من هنا.</p>
 
     <h2 class="mt-4">الخدمات الحالية</h2>
     <div class="table-responsive">

@@ -1,25 +1,35 @@
 import requests
 from bot.config import API_TOKEN
+import uuid
 
 class APIClient:
-    def __init__(self, base_url="https://api.example.com"):
+    def __init__(self, base_url="https://api.oranosmarket.com"):
         self.base_url = base_url
         self.headers = {"api-token": API_TOKEN}
 
     def _get(self, endpoint, params=None):
         try:
-            response = requests.get(f"{self.base_url}/{endpoint}", headers=self.headers, params=params)
+            response = requests.get(f"{self.base_url}{endpoint}", headers=self.headers, params=params)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
             print(f"An error occurred: {e}")
             return None
 
-    def get_categories_and_products(self):
-        return self._get("categories")
+    def get_api_content(self):
+        return self._get("/client/api/content/0")
 
-    def new_order(self, order_data):
-        return self._get("new_order", params=order_data)
+    def new_order(self, service_id, qty, player_id):
+        order_uuid = uuid.uuid4()
+        endpoint = f"/client/api/newOrder/{service_id}/params"
+        params = {
+            "qty": qty,
+            "playerId": player_id,
+            "order_uuid": order_uuid
+        }
+        return self._get(endpoint, params=params)
 
     def check_orders(self, user_id):
-        return self._get("orders", params={"user_id": user_id})
+        # NOTE: The user has not provided a specific endpoint for checking orders.
+        # Using a placeholder endpoint. This might need to be updated.
+        return self._get("/client/api/orders", params={"user_id": user_id})

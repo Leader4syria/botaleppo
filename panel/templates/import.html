@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">استيراد الخدمات من API</h1>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <p>انقر على الزر أدناه لجلب أحدث قائمة بالخدمات من واجهة برمجة التطبيقات الخارجية.</p>
+            <a href="{{ url_for('import_route', fetch='true') }}" class="btn btn-primary">جلب الخدمات من API</a>
+        </div>
+    </div>
+
+    {% if api_services %}
+    <form method="post" action="{{ url_for('import_route') }}">
+        <h2>الخدمات المتاحة للاستيراد</h2>
+        <p>حدد الخدمات التي ترغب في استيرادها واختر الفئة المحلية لإضافتها إليها.</p>
+
+        <div class="mb-3">
+            <label for="category_id" class="form-label">اختر الفئة المحلية:</label>
+            <select class="form-select" id="category_id" name="category_id" required>
+                {% for category in local_categories %}
+                    <option value="{{ category.id }}">{{ category.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col" style="width: 5%;"><input type="checkbox" id="select-all"></th>
+                        <th scope="col" style="width: 25%;">اسم الخدمة</th>
+                        <th scope="col">وصف الخدمة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for service in api_services %}
+                    <tr>
+                        <td><input type="checkbox" class="form-check-input" name="selected_services" value="{{ service.id }}"></td>
+                        <td>{{ service.name }}</td>
+                        <td>{{ service.description }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <button type="submit" class="btn btn-success mt-3">استيراد الخدمات المحددة</button>
+    </form>
+
+    <script>
+        document.getElementById('select-all').onclick = function() {
+            var checkboxes = document.querySelectorAll('input[name="selected_services"]');
+            for (var checkbox of checkboxes) {
+                checkbox.checked = this.checked;
+            }
+        }
+    </script>
+    {% endif %}
+{% endblock %}

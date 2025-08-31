@@ -20,6 +20,14 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="mb-3">
+                    <label for="description" class="form-label">الوصف</label>
+                    <textarea class="form-control" id="description" name="description" rows="3">{{ service.description or '' }}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="api_service_id" class="form-label">معرف الخدمة في الـ API</label>
+                    <input type="number" class="form-control" id="api_service_id" name="api_service_id" value="{{ service.api_service_id or '' }}">
+                </div>
                 <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
                 <a href="{{ url_for('services_route') }}" class="btn btn-secondary">إلغاء</a>
             </form>

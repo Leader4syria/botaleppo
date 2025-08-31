@@ -2,9 +2,10 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from panel.config import FLASK_SECRET_KEY
 from panel.utils import db
+from bot.utils.api import APIClient
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = FLASK_SECRET_KEY
@@ -92,7 +93,8 @@ def add_service_route():
         return redirect(url_for('login'))
     name = request.form['name']
     category_id = int(request.form['category_id'])
-    db.add_service(name, category_id)
+    # These fields are not in the simple add form, so we pass defaults
+    db.add_service(name=name, category_id=category_id, description='', api_service_id=None)
     return redirect(url_for('services_route'))
 
 @app.route('/services/edit/<int:id>', methods=['GET', 'POST'])
@@ -103,7 +105,13 @@ def edit_service_route(id):
     if request.method == 'POST':
         name = request.form['name']
         category_id = int(request.form['category_id'])
-        db.update_service(id, name, category_id)
+        description = request.form.get('description', '')
+        api_service_id = request.form.get('api_service_id')
+        if api_service_id == '' or not api_service_id.isdigit():
+            api_service_id = None
+        else:
+            api_service_id = int(api_service_id)
+        db.update_service(id, name, category_id, description, api_service_id)
         return redirect(url_for('services_route'))
 
     service = db.get_service(id)
@@ -116,6 +124,63 @@ def delete_service_route(id):
         return redirect(url_for('login'))
     db.delete_service(id)
     return redirect(url_for('services_route'))
+
+@app.route('/import', methods=['GET', 'POST'])
+def import_route():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    api_client = APIClient()
+
+    if request.method == 'POST':
+        selected_ids = request.form.getlist('selected_services')
+        category_id = request.form.get('category_id')
+
+        if not selected_ids or not category_id:
+            flash('الرجاء تحديد خدمة واحدة على الأقل وفئة.', 'warning')
+            return redirect(url_for('import_route'))
+
+        api_services = session.get('api_services', [])
+
+        services_to_import = [s for s in api_services if str(s.get('id')) in selected_ids]
+
+        count = 0
+        for service in services_to_import:
+            # Assuming the API response has 'id', 'name', and 'description'
+            db.add_service(
+                name=service.get('name'),
+                category_id=int(category_id),
+                description=service.get('description', ''),
+                api_service_id=service.get('id')
+            )
+            count += 1
+
+        session.pop('api_services', None) # Clear session cache
+        flash(f"تم استيراد {count} خدمة بنجاح!", 'success')
+        return redirect(url_for('services_route'))
+
+    api_services_data = None
+    if 'fetch' in request.args:
+        content = api_client.get_api_content()
+        all_services = []
+        if content and isinstance(content, list):
+            for category in content:
+                if 'services' in category and isinstance(category['services'], list):
+                    for service in category['services']:
+                        # The API response has 'service' as id, 'name', 'rate', 'min', 'max', 'desc', 'category'
+                        # I need to map these to my column names.
+                        all_services.append({
+                            'id': service.get('service'),
+                            'name': service.get('name'),
+                            'description': service.get('desc')
+                        })
+
+        session['api_services'] = all_services
+        api_services_data = all_services
+
+    local_categories = db.get_categories()
+    return render_template('import.html', api_services=api_services_data, local_categories=local_categories)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
