@@ -2,46 +2,20 @@
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">مستكشف و استيراد API</h1>
+    <h1 class="h2">استيراد الخدمات من ملف JSON</h1>
 </div>
 
 <div class="card">
     <div class="card-header">
-        <h4>الطلب</h4>
+        <h4>رفع ملف</h4>
     </div>
     <div class="card-body">
-        <form id="api-request-form" method="post">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="api_config_id" class="form-label">اختر تكوين API المحفوظ</label>
-                    <select class="form-select" id="api_config_id" name="api_config_id">
-                        <option value="">-- يدوي --</option>
-                        {% for config in api_configs %}
-                            <option value="{{ config.id }}" data-url="{{ config.base_url }}" data-header="{{ config.auth_header_name }}" data-token="{{ config.auth_token }}">{{ config.api_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="method" class="form-label">الطريقة</label>
-                    <select class="form-select" id="method" name="method">
-                        <option>GET</option>
-                        <option>POST</option>
-                    </select>
-                </div>
-            </div>
+        <form method="post" enctype="multipart/form-data">
             <div class="mb-3">
-                <label for="url" class="form-label">عنوان URL</label>
-                <input type="text" class="form-control" id="url" name="url" placeholder="https://api.example.com/data" required>
+                <label for="json_file" class="form-label">اختر ملف JSON الذي تم تنزيله من مزود الـ API.</label>
+                <input class="form-control" type="file" id="json_file" name="json_file" accept=".json" required>
             </div>
-            <div class="mb-3">
-                <label for="headers" class="form-label">Headers (كل واحد في سطر)</label>
-                <textarea class="form-control" id="headers" name="headers" rows="3"></textarea>
-            </div>
-            <div class="mb-3" id="body-container" style="display: none;">
-                <label for="body" class="form-label">Body (JSON)</label>
-                <textarea class="form-control" id="body" name="body" rows="5"></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary w-100">إرسال الطلب وجلب الخدمات</button>
+            <button type="submit" class="btn btn-primary w-100">تحليل الملف وعرض الخدمات</button>
         </form>
     </div>
 </div>
@@ -111,34 +85,6 @@
 </div>
 
 <script>
-    // Show/hide body based on method
-    const methodSelect = document.getElementById('method');
-    const bodyContainer = document.getElementById('body-container');
-    methodSelect.addEventListener('change', function() {
-        bodyContainer.style.display = this.value === 'POST' ? 'block' : 'none';
-    });
-
-    // Pre-fill form from saved config
-    const configSelect = document.getElementById('api_config_id');
-    configSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        if (!selectedOption.value) {
-            document.getElementById('url').value = '';
-            document.getElementById('headers').value = '';
-            return;
-        }
-        const url = selectedOption.getAttribute('data-url');
-        const header = selectedOption.getAttribute('data-header');
-        const token = selectedOption.getAttribute('data-token');
-
-        document.getElementById('url').value = url;
-        if (header && token) {
-            document.getElementById('headers').value = `${header}: ${token}`;
-        } else {
-            document.getElementById('headers').value = '';
-        }
-    });
-
     // Handle modal data population
     const importModal = document.getElementById('importModal');
     importModal.addEventListener('show.bs.modal', function (event) {

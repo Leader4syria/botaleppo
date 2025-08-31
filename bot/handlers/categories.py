@@ -47,7 +47,11 @@ def register_handlers(bot):
         current_category = find_category(data.get('categories', []), category_id)
         parent_id = current_category.get('parent_id') if current_category else None
 
-        back_callback = f"category:{parent_id}" if parent_id is not None else "category:"
+        if parent_id is not None:
+            back_callback = f"category:{parent_id}"
+        else:
+            # If the parent is the root, the back button goes to the main menu
+            back_callback = "menu:back_to_main"
 
         if sub_categories:
             keyboard = generate_keyboard(sub_categories, 'category', back_callback_data=back_callback)

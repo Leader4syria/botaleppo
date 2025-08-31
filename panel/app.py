@@ -125,107 +125,51 @@ def delete_service_route(id):
     db.delete_service(id)
     return redirect(url_for('services_route'))
 
-# --- API Config Routes ---
-
-@app.route('/apis')
-def api_configs_route():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    configs = db.get_api_configs()
-    return render_template('apis.html', api_configs=configs)
-
-@app.route('/apis/add', methods=['POST'])
-def add_api_config_route():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-
-    db.add_api_config(
-        api_name=request.form['api_name'],
-        base_url=request.form['base_url'],
-        auth_header_name=request.form.get('auth_header_name'),
-        auth_token=request.form.get('auth_token')
-    )
-    flash('تمت إضافة تكوين API بنجاح!', 'success')
-    return redirect(url_for('api_configs_route'))
-
-@app.route('/apis/edit/<int:id>', methods=['GET', 'POST'])
-def edit_api_config_route(id):
-    if 'user' not in session:
-        return redirect(url_for('login'))
-
-    if request.method == 'POST':
-        db.update_api_config(
-            id=id,
-            api_name=request.form['api_name'],
-            base_url=request.form['base_url'],
-            auth_header_name=request.form.get('auth_header_name'),
-            auth_token=request.form.get('auth_token')
-        )
-        flash('تم تحديث تكوين API بنجاح!', 'success')
-        return redirect(url_for('api_configs_route'))
-
-    config = db.get_api_config(id)
-    return render_template('edit_api.html', config=config)
-
-@app.route('/apis/delete/<int:id>')
-def delete_api_config_route(id):
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    db.delete_api_config(id)
-    flash('تم حذف تكوين API بنجاح!', 'warning')
-    return redirect(url_for('api_configs_route'))
-
-
-import requests
 import json
 
-@app.route('/api_explorer', methods=['GET', 'POST'])
-def api_explorer_route():
+@app.route('/file_import', methods=['GET', 'POST'])
+def file_import_route():
     if 'user' not in session:
         return redirect(url_for('login'))
 
     parsed_services = None
     if request.method == 'POST':
-        try:
-            url = request.form['url']
-            method = request.form['method']
-            headers_str = request.form.get('headers', '')
-            body_str = request.form.get('body', '')
+        if 'json_file' not in request.files:
+            flash('No file part', 'warning')
+            return redirect(request.url)
+        file = request.files['json_file']
+        if file.filename == '':
+            flash('No selected file', 'warning')
+            return redirect(request.url)
+        if file and file.filename.endswith('.json'):
+            try:
+                content = json.load(file.stream)
 
-            headers = {}
-            if headers_str:
-                for line in headers_str.strip().split('\n'):
-                    if ':' in line:
-                        key, value = line.split(':', 1)
-                        headers[key.strip()] = value.strip()
+                # Logic to parse services from the uploaded file content
+                if isinstance(content, list):
+                    parsed_services = []
+                    for item in content:
+                        if isinstance(item, dict) and 'services' in item:
+                            for service in item.get('services', []):
+                                if isinstance(service, dict) and 'service' in service and 'name' in service:
+                                    parsed_services.append({
+                                        'id': service.get('service'),
+                                        'name': service.get('name'),
+                                        'price': service.get('price'),
+                                        'description': ''
+                                    })
+                if parsed_services:
+                    flash(f"تم تحليل الملف بنجاح وعرض {len(parsed_services)} خدمة.", 'success')
+                else:
+                    flash('لم يتم العثور على خدمات بالتنسيق المتوقع في الملف.', 'info')
 
-            kwargs = {'headers': headers, 'timeout': 10}
-            if method == 'POST' and body_str:
-                kwargs['json'] = json.loads(body_str)
+            except Exception as e:
+                flash(f"Error processing file: {e}", 'danger')
+        else:
+            flash('ملف غير صالح. الرجاء تحميل ملف .json فقط.', 'danger')
 
-            response = requests.request(method, url, **kwargs)
-            response.raise_for_status()
-            response_data = response.json()
-
-            # Try to parse services from the response
-            if isinstance(response_data, list):
-                parsed_services = []
-                for item in response_data:
-                    if isinstance(item, dict) and 'services' in item:
-                        for service in item.get('services', []):
-                             if isinstance(service, dict) and 'service' in service and 'name' in service:
-                                parsed_services.append({
-                                    'id': service.get('service'),
-                                    'name': service.get('name'),
-                                    'price': service.get('price'),
-                                    'description': ''
-                                })
-        except Exception as e:
-            flash(f"API Request Failed: {e}", 'danger')
-
-    api_configs = db.get_api_configs()
     local_categories = db.get_categories()
-    return render_template('api_explorer.html', api_configs=api_configs, parsed_services=parsed_services, local_categories=local_categories)
+    return render_template('file_import.html', parsed_services=parsed_services, local_categories=local_categories)
 
 @app.route('/import_single_service', methods=['POST'])
 def import_single_service_route():
@@ -237,7 +181,7 @@ def import_single_service_route():
 
     if not service_id_to_import or not category_id:
         flash('معلومات الخدمة أو الفئة غير كاملة.', 'danger')
-        return redirect(url_for('api_explorer_route'))
+        return redirect(url_for('file_import_route'))
 
     # To remain stateless, we must re-fetch the API content to find the service details
     api_client = APIClient()

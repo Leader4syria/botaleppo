@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import telebot
 import threading
 from bot.config import TELEGRAM_BOT_TOKEN
-from bot.handlers import start, categories, orders
+from bot.handlers import start, categories, orders, menu
 from panel.app import app as flask_app
 
 def run_flask():
@@ -20,6 +20,7 @@ if __name__ == "__main__":
     start.register_handlers(bot)
     categories.register_handlers(bot)
     orders.register_handlers(bot)
+    menu.register_handlers(bot)
 
     print("Bot and Flask Panel are running.")
     bot.polling()

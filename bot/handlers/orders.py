@@ -90,6 +90,23 @@ def register_handlers(bot):
             order_id = response.get('order_id', 'N/A')
             reply_text = f"✅ تم إنشاء طلبك بنجاح!\nرقم الطلب: {order_id}"
             bot.send_message(message.chat.id, reply_text)
+
+            # Notify admin of the new successful order
+            if ADMIN_ID:
+                user = message.from_user
+                contact_url = f"t.me/{user.username}" if user.username else f"tg://user?id={user.id}"
+                admin_message = (
+                    f"🎉 طلب جديد ناجح! 🎉\n\n"
+                    f"الخدمة: {service['name']}\n"
+                    f"الكمية: {quantity}\n"
+                    f"معرف اللاعب: {player_id}\n"
+                    f"مقدم الطلب: {user.first_name} (@{user.username or 'N/A'})\n"
+                    f"معرف الطلب: {order_id}"
+                )
+                keyboard = InlineKeyboardMarkup()
+                contact_button = InlineKeyboardButton("تواصل مع المستخدم", url=contact_url)
+                keyboard.add(contact_button)
+                bot.send_message(ADMIN_ID, admin_message, reply_markup=keyboard)
         else:
             # Order failed, check for insufficient funds
             error_message = str(response).lower()
@@ -118,21 +135,4 @@ def register_handlers(bot):
         if user_id in user_order_data:
             del user_order_data[user_id]
 
-    @bot.message_handler(commands=['myorders'])
-    def my_orders_command(message):
-        user_id = message.from_user.id
-        orders = api_client.check_orders(user_id)
-
-        if orders and isinstance(orders, list):
-            if not orders:
-                reply_text = "لا يوجد لديك طلبات حالية."
-            else:
-                reply_text = "قائمة طلباتك:\n"
-                for order in orders:
-                    order_id = order.get('id', 'N/A')
-                    status = order.get('status', 'N/A')
-                    reply_text += f"- طلب رقم {order_id}: {status}\n"
-        else:
-            reply_text = "عذراً، لم نتمكن من جلب قائمة طلباتك."
-
-        bot.reply_to(message, reply_text)
+    # The /myorders command is now handled by the menu callback

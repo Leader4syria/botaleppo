@@ -1,0 +1,60 @@
+from bot.keyboards.inline import main_menu_keyboard
+from bot.utils.decorators import check_subscription
+from bot.handlers.categories import show_main_categories
+from bot.utils.api import APIClient
+
+def show_my_orders(bot, message):
+    api_client = APIClient()
+    user_id = message.chat.id
+    orders = api_client.check_orders(user_id)
+
+    reply_text = "📦 **طلباتي**\n\n"
+    if orders and isinstance(orders, list) and orders:
+        for order in orders:
+            order_id = order.get('id', 'N/A')
+            status = order.get('status', 'N/A')
+            reply_text += f"- طلب رقم {order_id}: {status}\n"
+    else:
+        reply_text += "لا يوجد لديك طلبات حالية."
+
+    # To avoid editing a message with a button to a message without, we send a new one
+    bot.send_message(message.chat.id, reply_text, parse_mode='Markdown')
+
+
+def register_handlers(bot):
+
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('menu:'))
+    @check_subscription(bot)
+    def handle_menu_callbacks(call):
+        action = call.data.split(':')[1]
+
+        # Acknowledge the callback immediately
+        bot.answer_callback_query(call.id)
+
+        if action == 'services':
+            # Delete the menu and show the categories
+            bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+            show_main_categories(bot, call.message.chat.id)
+
+        elif action == 'my_info':
+            user = call.from_user
+            info_text = (
+                f"ℹ️ **معلومات حسابك**\n\n"
+                f"**الاسم:** {user.first_name}\n"
+                f"**المعرف:** @{user.username if user.username else 'غير متوفر'}\n"
+                f"**ID:** `{user.id}`"
+            )
+            # We edit the message to show the info, but keep the main menu keyboard
+            bot.edit_message_text(info_text, chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode='Markdown', reply_markup=main_menu_keyboard())
+
+        elif action == 'my_orders':
+            bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+            show_my_orders(bot, call.message)
+
+        elif action == 'contact_us':
+            contact_text = "للتواصل مع الدعم، يرجى مراسلة المسؤول."
+            bot.answer_callback_query(call.id, text=contact_text, show_alert=True)
+
+        elif action == 'back_to_main':
+            welcome_text = "أهلاً بك في البوت! اختر أحد الخيارات من القائمة."
+            bot.edit_message_text(welcome_text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=main_menu_keyboard())
