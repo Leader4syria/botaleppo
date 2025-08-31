@@ -171,7 +171,8 @@ def import_from_cache_route():
                 api_service_id=service_to_add.get('id'),
                 api_config_id=None,
                 price=float(price),
-                params=json.dumps(service_to_add.get('params', []))
+                params=json.dumps(service_to_add.get('params', [])),
+                qty_values=service_to_add.get('qty_values')
             )
             flash(f"تم استيراد الخدمة '{service_to_add.get('name')}' بنجاح!", 'success')
         else:
