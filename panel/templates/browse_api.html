@@ -11,14 +11,19 @@
     </div>
     <div class="card-body">
         <form method="get">
-            <div class="row">
-                <div class="col-md-10">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label for="api_id" class="form-label">تكوين API المحفوظ</label>
                     <select class="form-select" name="api_id" required>
                         <option value="">-- اختر تكوين API --</option>
                         {% for config in api_configs %}
-                            <option value="{{ config.id }}" {% if config.id == selected_api_id %}selected{% endif %}>{{ config.api_name }} ({{ config.base_url }})</option>
+                            <option value="{{ config.id }}" {% if config.id == selected_api_id %}selected{% endif %}>{{ config.api_name }}</option>
                         {% endfor %}
                     </select>
+                </div>
+                <div class="col-md-5">
+                    <label for="extra_headers" class="form-label">Headers إضافية (اختياري)</label>
+                    <textarea class="form-control" name="extra_headers" rows="1" placeholder="key1: value1&#10;key2: value2"></textarea>
                 </div>
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-primary w-100">جلب الخدمات</button>

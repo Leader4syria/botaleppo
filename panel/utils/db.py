@@ -108,12 +108,11 @@ def get_api_config(id):
         print(f"Error fetching API config: {e}")
         return None
 
-def add_api_config(api_name, base_url, auth_header_name, auth_token):
+def add_api_config(api_name, base_url, auth_token):
     try:
         response = supabase.table('api_configs').insert({
             'api_name': api_name,
             'base_url': base_url,
-            'auth_header_name': auth_header_name,
             'auth_token': auth_token
         }).execute()
         return response.data
@@ -121,12 +120,11 @@ def add_api_config(api_name, base_url, auth_header_name, auth_token):
         print(f"Error adding API config: {e}")
         return None
 
-def update_api_config(id, api_name, base_url, auth_header_name, auth_token):
+def update_api_config(id, api_name, base_url, auth_token):
     try:
         response = supabase.table('api_configs').update({
             'api_name': api_name,
             'base_url': base_url,
-            'auth_header_name': auth_header_name,
             'auth_token': auth_token
         }).eq('id', id).execute()
         return response.data

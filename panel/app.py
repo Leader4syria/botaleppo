@@ -122,7 +122,7 @@ def api_configs_route():
 def add_api_config_route():
     # ... (omitted for brevity, no changes)
     if 'user' not in session: return redirect(url_for('login'))
-    db.add_api_config(api_name=request.form['api_name'], base_url=request.form['base_url'], auth_header_name=request.form.get('auth_header_name'), auth_token=request.form.get('auth_token'))
+    db.add_api_config(api_name=request.form['api_name'], base_url=request.form['base_url'], auth_token=request.form.get('auth_token'))
     flash('تمت إضافة تكوين API بنجاح!', 'success')
     return redirect(url_for('api_configs_route'))
 
@@ -131,7 +131,7 @@ def edit_api_config_route(id):
     # ... (omitted for brevity, no changes)
     if 'user' not in session: return redirect(url_for('login'))
     if request.method == 'POST':
-        db.update_api_config(id=id, api_name=request.form['api_name'], base_url=request.form['base_url'], auth_header_name=request.form.get('auth_header_name'), auth_token=request.form.get('auth_token'))
+        db.update_api_config(id=id, api_name=request.form['api_name'], base_url=request.form['base_url'], auth_token=request.form.get('auth_token'))
         flash('تم تحديث تكوين API بنجاح!', 'success')
         return redirect(url_for('api_configs_route'))
     config = db.get_api_config(id)
@@ -153,6 +153,7 @@ def browse_api_route():
 
     api_id = request.args.get('api_id', type=int)
     page = request.args.get('page', 1, type=int)
+    extra_headers_str = request.args.get('extra_headers', '')
 
     all_services = []
     paginated_services = []
@@ -162,10 +163,16 @@ def browse_api_route():
         api_config = db.get_api_config(api_id)
         if api_config:
             try:
-                headers = {api_config['auth_header_name']: api_config['auth_token']} if api_config.get('auth_header_name') else {}
-                # The user provided a full URL, so we use it directly
-                # I will use the one from the previous user message
-                # This needs to be more dynamic based on the selected config
+                # Start with the saved token
+                headers = {'api-token': api_config.get('auth_token')} if api_config.get('auth_token') else {}
+
+                # Parse and merge extra headers
+                if extra_headers_str:
+                    for line in extra_headers_str.strip().split('\n'):
+                        if ':' in line:
+                            key, value = line.split(':', 1)
+                            headers[key.strip()] = value.strip()
+
                 api_url = api_config['base_url']
                 response = requests.get(api_url, headers=headers, timeout=10)
                 response.raise_for_status()
