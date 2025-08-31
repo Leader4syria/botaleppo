@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h2>تسجيل الدخول</h2>
+    <form method="post">
+        <label for="email">البريد الإلكتروني:</label>
+        <input type="email" id="email" name="email" required>
+        <br>
+        <label for="password">كلمة المرور:</label>
+        <input type="password" id="password" name="password" required>
+        <br>
+        <button type="submit">دخول</button>
+    </form>
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+{% endblock %}
