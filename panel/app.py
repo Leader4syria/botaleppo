@@ -14,17 +14,15 @@ app.config['SECRET_KEY'] = FLASK_SECRET_KEY
 PER_PAGE = 50
 CACHE_FILE = 'products.json'
 
-# --- Auth Routes ---
+# --- AUTH ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        if username == 'admin' and password == 'admin':
+        if request.form['username'] == 'admin' and request.form['password'] == 'admin':
             session['user'] = 'admin'
             return redirect(url_for('dashboard'))
         else:
-            return render_template('login.html', error="بيانات اعتماد غير صالحة.")
+            flash('بيانات اعتماد غير صالحة.', 'danger')
     return render_template('login.html')
 
 @app.route('/logout')
@@ -32,14 +30,14 @@ def logout():
     session.pop('user', None)
     return redirect(url_for('login'))
 
-# --- Main Panel Routes ---
+# --- CORE PAGES ---
 @app.route('/')
 def dashboard():
     if 'user' not in session:
         return redirect(url_for('login'))
     return render_template('dashboard.html')
 
-@app.route('/categories')
+@app.route('/categories', methods=['GET'])
 def categories_route():
     if 'user' not in session:
         return redirect(url_for('login'))
@@ -48,33 +46,19 @@ def categories_route():
 
 @app.route('/categories/add', methods=['POST'])
 def add_category_route():
-    if 'user' not in session: return redirect(url_for('login'))
-    name = request.form['name']
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    name = request.form.get('name')
     parent_id = request.form.get('parent_id')
-    if parent_id == '': parent_id = None
-    else: parent_id = int(parent_id)
-    db.add_category(name, parent_id)
-    flash('تمت إضافة الفئة بنجاح!', 'success')
+    if name:
+        db.add_category(name, parent_id if parent_id else None)
+        flash('تمت إضافة الفئة بنجاح!', 'success')
     return redirect(url_for('categories_route'))
-
-@app.route('/categories/edit/<int:id>', methods=['GET', 'POST'])
-def edit_category_route(id):
-    if 'user' not in session: return redirect(url_for('login'))
-    if request.method == 'POST':
-        name = request.form['name']
-        parent_id = request.form.get('parent_id')
-        if parent_id == '': parent_id = None
-        else: parent_id = int(parent_id)
-        db.update_category(id, name, parent_id)
-        flash('تم تحديث الفئة بنجاح!', 'success')
-        return redirect(url_for('categories_route'))
-    category = db.get_category(id)
-    all_categories = db.get_categories()
-    return render_template('edit_category.html', category=category, all_categories=all_categories)
 
 @app.route('/categories/delete/<int:id>')
 def delete_category_route(id):
-    if 'user' not in session: return redirect(url_for('login'))
+    if 'user' not in session:
+        return redirect(url_for('login'))
     db.delete_category(id)
     flash('تم حذف الفئة بنجاح!', 'warning')
     return redirect(url_for('categories_route'))
@@ -86,31 +70,37 @@ def services_route():
     services = db.get_services()
     return render_template('services.html', services=services)
 
-# ... (Other CRUD routes for categories and services can be kept for manual editing)
+@app.route('/services/delete/<int:id>')
+def delete_service_route(id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    db.delete_service(id)
+    flash('تم حذف الخدمة بنجاح.', 'success')
+    return redirect(url_for('services_route'))
 
-# --- New Caching and Import Workflow ---
-@app.route('/cache_manager')
-def cache_manager_route():
+# --- API TOOLS & CACHING ---
+@app.route('/api_tools')
+def api_tools_route():
     if 'user' not in session:
         return redirect(url_for('login'))
 
     page = request.args.get('page', 1, type=int)
     action = request.args.get('action')
+    raw_response = None
 
     if action == 'update_cache':
         try:
-            # This logic is from the user's script
             url = "https://api.oranosmarket.com/client/api/products"
             headers = {"api-token": "4b7b7a650e3d0004b45bf260d5202d9fad1dd53fab9a6fbd"}
             response = requests.get(url, headers=headers, timeout=15)
             response.raise_for_status()
-            data = response.json()
+            raw_response = response.json()
             with open(CACHE_FILE, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+                json.dump(raw_response, f, ensure_ascii=False, indent=2)
             flash('تم تحديث كاش الخدمات بنجاح!', 'success')
         except Exception as e:
             flash(f'فشل تحديث الكاش: {e}', 'danger')
-        return redirect(url_for('cache_manager_route'))
+            raw_response = {'error': str(e)}
 
     # Display services from cache file
     services = []
@@ -122,7 +112,6 @@ def cache_manager_route():
             with open(CACHE_FILE, "r", encoding="utf-8") as f:
                 all_services_raw = json.load(f)
 
-            # Parse the services from the raw data
             all_services = []
             if isinstance(all_services_raw, list):
                 for item in all_services_raw:
@@ -135,22 +124,22 @@ def cache_manager_route():
                                     'price': service.get('price')
                                 })
 
-            # Paginate the results
             start = (page - 1) * PER_PAGE
             end = start + PER_PAGE
             services = all_services[start:end]
             total_pages = (len(all_services) + PER_PAGE - 1) // PER_PAGE
-
     except Exception as e:
         flash(f'خطأ في قراءة ملف الكاش: {e}', 'danger')
 
     local_categories = db.get_categories()
-    return render_template('cache_manager.html',
+    return render_template('api_tools.html',
                            services=services,
                            local_categories=local_categories,
                            current_page=page,
                            total_pages=total_pages,
-                           last_updated=last_updated)
+                           last_updated=last_updated,
+                           raw_response=raw_response,
+                           action=action)
 
 @app.route('/import_from_cache', methods=['POST'])
 def import_from_cache_route():
@@ -162,9 +151,8 @@ def import_from_cache_route():
 
     if not service_id or not category_id:
         flash('معلومات الخدمة أو الفئة غير كاملة.', 'danger')
-        return redirect(url_for('cache_manager_route'))
+        return redirect(url_for('api_tools_route'))
 
-    # Read from cache file to find the service details
     service_to_add = None
     try:
         if os.path.exists(CACHE_FILE):
@@ -181,13 +169,12 @@ def import_from_cache_route():
                         break
 
         if service_to_add:
-            # For now, we don't have a specific API config to link to, so this can be null
             db.add_service(
                 name=service_to_add.get('name'),
                 category_id=int(category_id),
-                description='', # Empty as requested
+                description='',
                 api_service_id=service_to_add.get('service'),
-                api_config_id=None # No longer linked to a specific managed API
+                api_config_id=None
             )
             flash(f"تم استيراد الخدمة '{service_to_add.get('name')}' بنجاح!", 'success')
         else:
@@ -196,7 +183,6 @@ def import_from_cache_route():
         flash(f"فشل استيراد الخدمة: {e}", 'danger')
 
     return redirect(url_for('services_route'))
-
 
 if __name__ == '__main__':
     app.run(debug=True)
