@@ -3,14 +3,23 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import telebot
+import threading
 from bot.config import TELEGRAM_BOT_TOKEN
 from bot.handlers import start, categories, orders
+from panel.app import app as flask_app
 
-bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
-
-start.register_handlers(bot)
-categories.register_handlers(bot)
-orders.register_handlers(bot)
+def run_flask():
+    flask_app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
 
 if __name__ == "__main__":
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+
+    bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
+    start.register_handlers(bot)
+    categories.register_handlers(bot)
+    orders.register_handlers(bot)
+
+    print("Bot and Flask Panel are running.")
     bot.polling()

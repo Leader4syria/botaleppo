@@ -5,7 +5,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from flask import Flask, render_template, request, redirect, url_for, session
 from panel.config import FLASK_SECRET_KEY
 from panel.utils import db
-from panel.utils.supabase_client import supabase
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = FLASK_SECRET_KEY
@@ -13,14 +12,13 @@ app.config['SECRET_KEY'] = FLASK_SECRET_KEY
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email']
+        username = request.form['username']
         password = request.form['password']
-        try:
-            user_session = supabase.auth.sign_in_with_password({"email": email, "password": password})
-            session['user'] = user_session.session.user.id
+        if username == 'admin' and password == 'admin':
+            session['user'] = 'admin'
             return redirect(url_for('dashboard'))
-        except Exception as e:
-            return render_template('login.html', error="فشل تسجيل الدخول.")
+        else:
+            return render_template('login.html', error="بيانات اعتماد غير صالحة.")
     return render_template('login.html')
 
 @app.route('/logout')

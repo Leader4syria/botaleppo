@@ -1,16 +1,28 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <h2>تعديل الخدمة</h2>
-    <form method="post">
-        <label for="name">اسم الخدمة:</label>
-        <input type="text" id="name" name="name" value="{{ service.name }}" required>
-        <label for="category_id">القسم:</label>
-        <select id="category_id" name="category_id" required>
-            {% for category in all_categories %}
-                <option value="{{ category.id }}" {% if category.id == service.category_id %}selected{% endif %}>{{ category.name }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit">حفظ التعديلات</button>
-    </form>
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">تعديل الخدمة: {{ service.name }}</h1>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                <div class="mb-3">
+                    <label for="name" class="form-label">اسم الخدمة</label>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ service.name }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="category_id" class="form-label">القسم</label>
+                    <select class="form-select" id="category_id" name="category_id" required>
+                        {% for category in all_categories %}
+                            <option value="{{ category.id }}" {% if category.id == service.category_id %}selected{% endif %}>{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+                <a href="{{ url_for('services_route') }}" class="btn btn-secondary">إلغاء</a>
+            </form>
+        </div>
+    </div>
 {% endblock %}
