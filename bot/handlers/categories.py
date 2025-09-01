@@ -62,6 +62,6 @@ def register_handlers(bot):
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="اختر فئة فرعية:", reply_markup=keyboard)
         elif services:
             keyboard = generate_keyboard(services, 'service', back_callback_data=back_callback)
-            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="اختر خدمة:", reply_markup=keyboard)
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="اختـــــــــــــــــــر خدمـــــــــــــة :", reply_markup=keyboard)
         else:
             bot.answer_callback_query(call.id, "لا توجد فئات فرعية أو خدمات هنا.")

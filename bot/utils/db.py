@@ -28,17 +28,36 @@ def add_user(user_id, first_name, username):
         print(f"Error adding user: {e}")
         return None
 
-def add_order(user_id, service_id, external_order_id, status='pending'):
+def add_order(user_id, service_id, external_order_id, status='pending', params=None):
     try:
-        response = supabase.table('orders').insert({
+        order_data = {
             'user_id': user_id,
             'service_id': service_id,
             'external_order_id': external_order_id,
-            'status': status
+            'status': status,
+        }
+        if params:
+            order_data['params'] = params
+
+        response = supabase.table('orders').insert(order_data).select('id').execute()
+
+        if response.data:
+            return response.data[0]['id']
+        return None
+    except Exception as e:
+        print(f"Error adding order: {e}")
+        return None
+
+def deduct_balance_from_user(user_id, amount_to_deduct):
+    try:
+        # This function calls a Supabase RPC function to decrement the user's balance.
+        response = supabase.rpc('decrement_balance', {
+            'user_id_in': user_id,
+            'amount_in': amount_to_deduct
         }).execute()
         return response.data
     except Exception as e:
-        print(f"Error adding order: {e}")
+        print(f"Error deducting balance: {e}")
         return None
 
 def get_orders_for_user(user_id):

@@ -30,6 +30,34 @@
     </div>
 </div>
 
+<div class="card mb-4">
+    <div class="card-header">
+        <h4>استيراد جماعي للخدمات من الكاش</h4>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('import_bulk_from_cache_route') }}" method="POST">
+            <div class="mb-3">
+                <label for="bulkServiceIds" class="form-label">أرقام الخدمات (IDs)</label>
+                <textarea class="form-control" id="bulkServiceIds" name="service_ids" rows="5" placeholder="أدخل أرقام الخدمات هنا، وافصل بينها بـ | أو مسافة أو سطر جديد. مثال: 2 | 33 | 193"></textarea>
+                <div class="form-text">يمكنك الفصل بين الأرقام باستخدام علامة `|` أو مسافة أو سطر جديد.</div>
+            </div>
+            <div class="mb-3">
+                <label for="bulkCategoryId" class="form-label">اختر الفئة المحلية لحفظ الخدمات فيها:</label>
+                <select class="form-select" id="bulkCategoryId" name="category_id" required>
+                    {% if local_categories %}
+                        {% for category in local_categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                        {% endfor %}
+                    {% else %}
+                        <option value="" disabled>الرجاء إضافة فئات أولاً</option>
+                    {% endif %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-success">استيراد الخدمات المحددة</button>
+        </form>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-12">
         <h4>رد السيرفر الخام</h4>

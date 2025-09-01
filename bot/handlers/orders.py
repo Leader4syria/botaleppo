@@ -74,49 +74,76 @@ def register_handlers(bot):
 
         bot.send_message(user_id, f"جاري تقديم طلبك لخدمة '{service['name']}'...")
 
-        # This logic was flawed. The bot does not need to manage multiple APIs.
-        # It uses one API defined in the config.
-        api_client = APIClient()
-        response = api_client.new_order(service['api_service_id'], collected_params)
+        # If service has no api_service_id, it's a manual order.
+        if service.get('api_service_id') is None:
+            params_json = json.dumps(collected_params, ensure_ascii=False)
+            order_id = db.add_order(user_id, service['id'], None, 'Pending', params=params_json)
 
-        if response and response.get('order_id'):
-            order_id = response.get('order_id', 'N/A')
+            if order_id:
+                service_price = service.get('price', 0.0)
+                db.deduct_balance_from_user(user_id, float(service_price))
+                bot.send_message(user_id, f"✅ تم استلام طلبك بنجاح!\nسيتم معالجته يدويًا من قبل المسؤول.\nرقم الطلب للمراجعة: {order_id}")
 
-            service_price = service.get('price', 0.0)
-            db.deduct_balance_from_user(user_id, float(service_price))
-            db.add_order(user_id, service['id'], order_id, 'Completed')
+                if ADMIN_ID:
+                    user = message.from_user
+                    contact_url = f"t.me/{user.username}" if user.username else f"tg://user?id={user.id}"
+                    params_str = "\n".join([f"- {k}: {v}" for k, v in collected_params.items()])
+                    admin_message = (
+                        f"📝 طلب خدمة يدوية (مع معلمات) 📝\n\n"
+                        f"الخدمة: {service['name']}\n"
+                        f"رقم الطلب: {order_id}\n"
+                        f"المعلمات:\n{params_str}\n"
+                        f"مقدم الطلب: {user.first_name} (@{user.username or 'N/A'})"
+                    )
+                    keyboard = InlineKeyboardMarkup()
+                    contact_button = InlineKeyboardButton("تواصل مع المستخدم", url=contact_url)
+                    keyboard.add(contact_button)
+                    bot.send_message(ADMIN_ID, admin_message, reply_markup=keyboard)
+            else:
+                bot.send_message(user_id, "حدث خطأ أثناء إنشاء طلبك اليدوي. يرجى المحاولة مرة أخرى أو التواصل مع الإدارة.")
 
-            bot.send_message(user_id, f"✅ تم إنشاء طلبك بنجاح!\nرقم الطلب: {order_id}")
+        else: # This is an API order
+            api_client = APIClient()
+            response = api_client.new_order(service['api_service_id'], collected_params)
 
-            if ADMIN_ID:
-                user = message.from_user
-                contact_url = f"t.me/{user.username}" if user.username else f"tg://user?id={user.id}"
-                params_str = "\n".join([f"- {k}: {v}" for k, v in collected_params.items()])
-                admin_message = (
-                    f"🎉 طلب جديد ناجح! 🎉\n\n"
-                    f"الخدمة: {service['name']}\n"
-                    f"المعلمات:\n{params_str}\n"
-                    f"مقدم الطلب: {user.first_name} (@{user.username or 'N/A'})\n"
-                    f"معرف الطلب: {order_id}"
-                )
-                keyboard = InlineKeyboardMarkup()
-                contact_button = InlineKeyboardButton("تواصل مع المستخدم", url=contact_url)
-                keyboard.add(contact_button)
-                bot.send_message(ADMIN_ID, admin_message, reply_markup=keyboard)
-        else:
-            if ADMIN_ID:
-                user = message.from_user
-                params_str = "\n".join([f"- {k}: {v}" for k, v in collected_params.items()])
-                admin_message = (
-                    f"⚠️ فشل طلب تلقائي ⚠️\n\n"
-                    f"الخدمة: {service['name']}\n"
-                    f"المعلمات:\n{params_str}\n"
-                    f"مقدم الطلب: {user.first_name} (@{user.username or 'N/A'})\n"
-                    f"استجابة الـ API: `{response}`\n\n"
-                    f"الرجاء معالجة الطلب يدويًا."
-                )
-                bot.send_message(ADMIN_ID, admin_message, parse_mode='Markdown')
-            bot.send_message(user_id, "⏳ حدث خطأ أثناء معالجة طلبك. تم إرسال التفاصيل إلى المسؤول لمتابعة الطلب يدويًا.")
+            if response and response.get('order_id'):
+                external_order_id = response.get('order_id', 'N/A')
+
+                service_price = service.get('price', 0.0)
+                db.deduct_balance_from_user(user_id, float(service_price))
+                db.add_order(user_id, service['id'], external_order_id, 'Completed')
+
+                bot.send_message(user_id, f"✅ تم إنشاء طلبك بنجاح!\nرقم الطلب: {external_order_id}")
+
+                if ADMIN_ID:
+                    user = message.from_user
+                    contact_url = f"t.me/{user.username}" if user.username else f"tg://user?id={user.id}"
+                    params_str = "\n".join([f"- {k}: {v}" for k, v in collected_params.items()])
+                    admin_message = (
+                        f"🎉 طلب جديد ناجح! 🎉\n\n"
+                        f"الخدمة: {service['name']}\n"
+                        f"المعلمات:\n{params_str}\n"
+                        f"مقدم الطلب: {user.first_name} (@{user.username or 'N/A'})\n"
+                        f"معرف الطلب: {external_order_id}"
+                    )
+                    keyboard = InlineKeyboardMarkup()
+                    contact_button = InlineKeyboardButton("تواصل مع المستخدم", url=contact_url)
+                    keyboard.add(contact_button)
+                    bot.send_message(ADMIN_ID, admin_message, reply_markup=keyboard)
+            else:
+                if ADMIN_ID:
+                    user = message.from_user
+                    params_str = "\n".join([f"- {k}: {v}" for k, v in collected_params.items()])
+                    admin_message = (
+                        f"⚠️ فشل طلب تلقائي ⚠️\n\n"
+                        f"الخدمة: {service['name']}\n"
+                        f"المعلمات:\n{params_str}\n"
+                        f"مقدم الطلب: {user.first_name} (@{user.username or 'N/A'})\n"
+                        f"استجابة الـ API: `{response}`\n\n"
+                        f"الرجاء معالجة الطلب يدويًا."
+                    )
+                    bot.send_message(ADMIN_ID, admin_message, parse_mode='Markdown')
+                bot.send_message(user_id, "⏳ حدث خطأ أثناء معالجة طلبك. تم إرسال التفاصيل إلى المسؤول لمتابعة الطلب يدويًا.")
 
         if user_id in user_state:
             del user_state[user_id]

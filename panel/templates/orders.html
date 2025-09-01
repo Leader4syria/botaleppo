@@ -12,6 +12,7 @@
                     <th scope="col">رقم الطلب</th>
                     <th scope="col">المستخدم</th>
                     <th scope="col">الخدمة</th>
+                    <th scope="col">المعلمات</th>
                     <th scope="col">رقم الطلب الخارجي</th>
                     <th scope="col">الحالة الحالية</th>
                     <th scope="col">تغيير الحالة</th>
@@ -24,6 +25,15 @@
                         <td>{{ order.id }}</td>
                         <td>{{ order.users.first_name if order.users else 'N/A' }} (<code>{{ order.user_id }}</code>)</td>
                         <td>{{ order.services.name if order.services else 'N/A' }}</td>
+                        <td>
+                            {% if order.params_parsed %}
+                                <ul class="list-unstyled mb-0">
+                                {% for key, value in order.params_parsed.items() %}
+                                    <li><small><strong>{{ key }}:</strong> {{ value }}</small></li>
+                                {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </td>
                         <td><code>{{ order.external_order_id }}</code></td>
                         <td><span class="badge bg-info">{{ order.status }}</span></td>
                         <td>
@@ -41,7 +51,7 @@
                     </tr>
                 {% else %}
                     <tr>
-                        <td colspan="7" class="text-center">لا توجد طلبات لعرضها.</td>
+                        <td colspan="8" class="text-center">لا توجد طلبات لعرضها.</td>
                     </tr>
                 {% endfor %}
             </tbody>

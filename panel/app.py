@@ -4,8 +4,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 import json
 import requests
+import re
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from panel.config import FLASK_SECRET_KEY
+from panel.config import FLASK_SECRET_KEY, ORANOS_API_URL, API_TOKEN
 from panel.utils import db
 from datetime import datetime
 
@@ -126,6 +127,15 @@ def orders_route():
     if 'user' not in session:
         return redirect(url_for('login'))
     orders = db.get_all_orders()
+    if orders:
+        for order in orders:
+            if order.get('params'):
+                try:
+                    # The params are stored as a JSON string, parse them for display
+                    order['params_parsed'] = json.loads(order['params'])
+                except (json.JSONDecodeError, TypeError):
+                    # If parsing fails, just show the raw string
+                    order['params_parsed'] = {'error': 'Could not parse params', 'raw': order['params']}
     return render_template('orders.html', orders=orders)
 
 @app.route('/orders/update_status/<int:order_id>', methods=['POST'])
@@ -156,9 +166,12 @@ def api_tools_route():
 
     if action == 'update_cache':
         try:
-            url = "https://api.oranosmarket.com/client/api/products"
-            headers = {"api-token": "4b7b7a650e3d0004b45bf260d5202d9fad1dd53fab9a6fbd"}
-            response = requests.get(url, headers=headers, timeout=15)
+            if not ORANOS_API_URL or not API_TOKEN:
+                flash('متغيرات البيئة ORANOS_API_URL و API_TOKEN غير معرّفة.', 'danger')
+                return redirect(url_for('api_tools_route'))
+
+            headers = {"api-token": API_TOKEN}
+            response = requests.get(ORANOS_API_URL, headers=headers, timeout=15)
             response.raise_for_status()
             data = response.json()
             with open(CACHE_FILE, "w", encoding="utf-8") as f:
@@ -246,6 +259,78 @@ def import_from_cache_route():
         flash(f"فشل استيراد الخدمة: {e}", 'danger')
 
     return redirect(url_for('services_route'))
+
+@app.route('/import_bulk_from_cache', methods=['POST'])
+def import_bulk_from_cache_route():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    service_ids_raw = request.form.get('service_ids')
+    category_id = request.form.get('category_id')
+
+    if not service_ids_raw or not category_id:
+        flash('قائمة أرقام الخدمات والتصنيف مطلوبان.', 'danger')
+        return redirect(url_for('api_tools_route'))
+
+    # Split IDs by pipe, comma, space, or newline, and filter out empty strings
+    service_ids = [sid.strip() for sid in re.split(r'[|,\s\n]+', service_ids_raw) if sid.strip()]
+    if not service_ids:
+        flash('لم يتم تقديم أرقام خدمات صالحة.', 'warning')
+        return redirect(url_for('api_tools_route'))
+
+    try:
+        all_services_map = {}
+        if os.path.exists(CACHE_FILE):
+            with open(CACHE_FILE, "r", encoding="utf-8") as f:
+                all_services_raw = json.load(f)
+            if isinstance(all_services_raw, list):
+                for service in all_services_raw:
+                    if isinstance(service, dict) and 'id' in service:
+                        all_services_map[str(service['id'])] = service
+
+        if not all_services_map:
+            flash('ملف الكاش فارغ أو غير صالح. يرجى تحديث الكاش أولاً.', 'danger')
+            return redirect(url_for('api_tools_route'))
+
+        success_count = 0
+        fail_count = 0
+        failed_ids = []
+
+        for service_id in service_ids:
+            service_to_add = all_services_map.get(service_id)
+            if service_to_add:
+                try:
+                    db.add_service(
+                        name=service_to_add['name'],
+                        category_id=int(category_id),
+                        description=service_to_add.get('description', ''),
+                        api_service_id=service_to_add.get('id'),
+                        api_config_id=None, # Imported services are manual fulfillment by default
+                        price=float(service_to_add.get('price', 0.0)),
+                        params=json.dumps(service_to_add.get('params', [])),
+                        qty_values=service_to_add.get('qty_values'),
+                        available=service_to_add.get('available', True)
+                    )
+                    success_count += 1
+                except Exception:
+                    fail_count += 1
+                    failed_ids.append(service_id)
+            else:
+                fail_count += 1
+                failed_ids.append(service_id)
+
+        summary_message = f"تم استيراد {success_count} خدمة بنجاح."
+        if fail_count > 0:
+            summary_message += f" فشل استيراد {fail_count} خدمة. الأرقام الفاشلة: {', '.join(failed_ids)}"
+            flash(summary_message, 'warning')
+        else:
+            flash(summary_message, 'success')
+
+    except Exception as e:
+        flash(f"حدث خطأ فادح أثناء الاستيراد الجماعي: {e}", 'danger')
+
+    return redirect(url_for('services_route'))
+
 
 if __name__ == '__main__':
     app.run(debug=True)

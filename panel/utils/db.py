@@ -96,6 +96,25 @@ def delete_service(id):
         print(f"Error deleting service: {e}")
         return None
 
+def get_api_linked_services():
+    try:
+        response = supabase.table('services').select('*').not_.is_('api_service_id', 'null').execute()
+        return response.data
+    except Exception as e:
+        print(f"Error fetching API-linked services: {e}")
+        return []
+
+def update_service_from_api(service_id, new_price, new_available_status):
+    try:
+        response = supabase.table('services').update({
+            'price': new_price,
+            'available': new_available_status
+        }).eq('id', service_id).execute()
+        return response.data
+    except Exception as e:
+        print(f"Error updating service {service_id} from API: {e}")
+        return None
+
 def get_users():
     try:
         response = supabase.table('users').select('*').order('id').execute()

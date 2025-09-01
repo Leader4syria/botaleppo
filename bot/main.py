@@ -41,5 +41,11 @@ if __name__ == "__main__":
     orders.register_handlers(bot)
     menu.register_handlers(bot)
 
-    print("Bot and Flask Panel are running.")
+    # Start the periodic service updater in a background thread
+    from bot.updater import run_periodic_sync
+    updater_thread = threading.Thread(target=run_periodic_sync)
+    updater_thread.daemon = True
+    updater_thread.start()
+
+    print("Bot, Flask Panel, and Service Updater are running.")
     bot.polling()
