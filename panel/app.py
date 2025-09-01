@@ -78,6 +78,29 @@ def delete_service_route(id):
     flash('تم حذف الخدمة بنجاح.', 'success')
     return redirect(url_for('services_route'))
 
+@app.route('/services/add_manual', methods=['POST'])
+def add_manual_service_route():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    try:
+        db.add_service(
+            name=request.form['name'],
+            category_id=int(request.form['category_id']),
+            description='',
+            api_service_id=int(request.form['api_service_id']),
+            api_config_id=None,
+            price=float(request.form['price']),
+            params=request.form.get('params', '[]'),
+            qty_values=None,
+            available=True
+        )
+        flash('تمت إضافة الخدمة اليدوية بنجاح!', 'success')
+    except Exception as e:
+        flash(f'فشل إضافة الخدمة: {e}', 'danger')
+
+    return redirect(url_for('services_route'))
+
 # --- User Management ---
 @app.route('/users')
 def users_route():

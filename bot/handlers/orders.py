@@ -104,22 +104,22 @@ def register_handlers(bot):
                 keyboard.add(contact_button)
                 bot.send_message(ADMIN_ID, admin_message, reply_markup=keyboard)
         else:
-            error_message = str(response).lower()
-            if "insufficient funds" in error_message:
-                if ADMIN_ID:
-                    user = message.from_user
-                    params_str = "\n".join([f"- {k}: {v}" for k, v in collected_params.items()])
-                    admin_message = (
-                        f"⚠️ فشل طلب بسبب عدم كفاية الرصيد ⚠️\n\n"
-                        f"الخدمة: {service['name']}\n"
-                        f"المعلمات:\n{params_str}\n"
-                        f"مقدم الطلب: {user.first_name} (@{user.username or 'N/A'})\n"
-                        f"الرجاء معالجة الطلب يدويًا."
-                    )
-                    bot.send_message(ADMIN_ID, admin_message)
-                bot.send_message(user_id, "⏳ فشل طلبك ولكن تم إرساله للمسؤول.")
-            else:
-                bot.send_message(user_id, f"❌ حدث خطأ أثناء إنشاء الطلب.\nالاستجابة: `{response}`")
+            # Any failed order is now forwarded to the admin
+            if ADMIN_ID:
+                user = message.from_user
+                params_str = "\n".join([f"- {k}: {v}" for k, v in collected_params.items()])
+                admin_message = (
+                    f"⚠️ فشل طلب تلقائي ⚠️\n\n"
+                    f"الخدمة: {service['name']}\n"
+                    f"المعلمات:\n{params_str}\n"
+                    f"مقدم الطلب: {user.first_name} (@{user.username or 'N/A'})\n"
+                    f"استجابة الـ API: `{response}`\n\n"
+                    f"الرجاء معالجة الطلب يدويًا."
+                )
+                bot.send_message(ADMIN_ID, admin_message, parse_mode='Markdown')
+
+            # Inform the user
+            bot.send_message(user_id, "⏳ حدث خطأ أثناء معالجة طلبك. تم إرسال التفاصيل إلى المسؤول لمتابعة الطلب يدويًا.")
 
         if user_id in user_state:
             del user_state[user_id]
