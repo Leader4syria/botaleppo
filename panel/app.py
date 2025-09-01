@@ -37,23 +37,20 @@ def dashboard():
         return redirect(url_for('login'))
     return render_template('dashboard.html')
 
-@app.route('/categories', methods=['GET'])
+@app.route('/categories', methods=['GET', 'POST'])
 def categories_route():
     if 'user' not in session:
         return redirect(url_for('login'))
+    if request.method == 'POST':
+        name = request.form.get('name')
+        parent_id = request.form.get('parent_id')
+        if name:
+            db.add_category(name, parent_id if parent_id else None)
+            flash('تمت إضافة الفئة بنجاح!', 'success')
+        return redirect(url_for('categories_route'))
+
     categories = db.get_categories()
     return render_template('categories.html', categories=categories)
-
-@app.route('/categories/add', methods=['POST'])
-def add_category_route():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    name = request.form.get('name')
-    parent_id = request.form.get('parent_id')
-    if name:
-        db.add_category(name, parent_id if parent_id else None)
-        flash('تمت إضافة الفئة بنجاح!', 'success')
-    return redirect(url_for('categories_route'))
 
 @app.route('/categories/delete/<int:id>')
 def delete_category_route(id):
@@ -63,12 +60,35 @@ def delete_category_route(id):
     flash('تم حذف الفئة بنجاح!', 'warning')
     return redirect(url_for('categories_route'))
 
-@app.route('/services')
+@app.route('/services', methods=['GET'])
 def services_route():
     if 'user' not in session:
         return redirect(url_for('login'))
     services = db.get_services()
-    return render_template('services.html', services=services)
+    categories = db.get_categories()
+    return render_template('services.html', services=services, categories=categories)
+
+@app.route('/services/add_manual', methods=['POST'])
+def add_manual_service_route():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    try:
+        # Manually added services are not linked to an API config
+        db.add_service(
+            name=request.form['name'],
+            category_id=int(request.form['category_id']),
+            description='',
+            api_service_id=request.form.get('api_service_id') or None,
+            api_config_id=None,
+            price=float(request.form['price']),
+            params=request.form.get('params', '[]'),
+            qty_values=json.loads(request.form.get('qty_values')) if request.form.get('qty_values') else None,
+            available=request.form.get('available') == 'true'
+        )
+        flash('تمت إضافة الخدمة اليدوية بنجاح!', 'success')
+    except Exception as e:
+        flash(f'فشل إضافة الخدمة: {e}', 'danger')
+    return redirect(url_for('services_route'))
 
 @app.route('/services/delete/<int:id>')
 def delete_service_route(id):
@@ -78,30 +98,6 @@ def delete_service_route(id):
     flash('تم حذف الخدمة بنجاح.', 'success')
     return redirect(url_for('services_route'))
 
-@app.route('/services/add_manual', methods=['POST'])
-def add_manual_service_route():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-
-    try:
-        db.add_service(
-            name=request.form['name'],
-            category_id=int(request.form['category_id']),
-            description='',
-            api_service_id=int(request.form['api_service_id']),
-            api_config_id=None,
-            price=float(request.form['price']),
-            params=request.form.get('params', '[]'),
-            qty_values=None,
-            available=True
-        )
-        flash('تمت إضافة الخدمة اليدوية بنجاح!', 'success')
-    except Exception as e:
-        flash(f'فشل إضافة الخدمة: {e}', 'danger')
-
-    return redirect(url_for('services_route'))
-
-# --- User Management ---
 @app.route('/users')
 def users_route():
     if 'user' not in session:
@@ -113,23 +109,18 @@ def users_route():
 def add_balance_route():
     if 'user' not in session:
         return redirect(url_for('login'))
-
     user_id = request.form.get('user_id', type=int)
     amount = request.form.get('amount', type=float)
-
     if user_id and amount:
         new_balance = db.add_balance_to_user(user_id, amount)
         flash(f"تمت إضافة رصيد بقيمة {amount} للمستخدم {user_id} بنجاح!", 'success')
-        # Send notification to user
         if hasattr(app, 'bot') and new_balance is not None:
             from bot.notifications import send_balance_update
             send_balance_update(app.bot, user_id, amount, new_balance)
     else:
         flash('معرف المستخدم أو المبلغ غير صالح.', 'danger')
-
     return redirect(url_for('users_route'))
 
-# --- Order Management ---
 @app.route('/orders')
 def orders_route():
     if 'user' not in session:
@@ -141,19 +132,16 @@ def orders_route():
 def update_order_status_route(order_id):
     if 'user' not in session:
         return redirect(url_for('login'))
-
     new_status = request.form.get('new_status')
     if new_status:
         db.update_order_status(order_id, new_status)
-        flash(f"تم تحديث حالة الطلب رقم {order_id} إلى '{new_status}'.", 'success')
-        # Send notification to user
         order = db.get_order(order_id)
+        flash(f"تم تحديث حالة الطلب رقم {order_id} إلى '{new_status}'.", 'success')
         if hasattr(app, 'bot') and order:
             from bot.notifications import send_status_update
             send_status_update(app.bot, order['user_id'], order_id, new_status)
     else:
         flash('لم يتم تحديد حالة جديدة.', 'warning')
-
     return redirect(url_for('orders_route'))
 
 # --- API TOOLS & CACHING ---
@@ -164,7 +152,7 @@ def api_tools_route():
 
     page = request.args.get('page', 1, type=int)
     action = request.args.get('action')
-    raw_response = None
+    raw_response = session.pop('raw_response', None)
 
     if action == 'update_cache':
         try:
@@ -172,15 +160,16 @@ def api_tools_route():
             headers = {"api-token": "4b7b7a650e3d0004b45bf260d5202d9fad1dd53fab9a6fbd"}
             response = requests.get(url, headers=headers, timeout=15)
             response.raise_for_status()
-            raw_response = response.json()
+            data = response.json()
             with open(CACHE_FILE, "w", encoding="utf-8") as f:
-                json.dump(raw_response, f, ensure_ascii=False, indent=2)
+                json.dump(data, f, ensure_ascii=False, indent=2)
             flash('تم تحديث كاش الخدمات بنجاح!', 'success')
+            session['raw_response'] = data # Store response to show after redirect
         except Exception as e:
             flash(f'فشل تحديث الكاش: {e}', 'danger')
-            raw_response = {'error': str(e)}
+            session['raw_response'] = {'error': str(e)}
+        return redirect(url_for('api_tools_route'))
 
-    # Display services from cache file
     services = []
     total_pages = 0
     last_updated = 'Never'
@@ -194,11 +183,7 @@ def api_tools_route():
             if isinstance(all_services_raw, list):
                 for service in all_services_raw:
                     if isinstance(service, dict) and 'id' in service and 'name' in service:
-                        all_services.append({
-                            'id': service.get('id'),
-                            'name': service.get('name'),
-                            'price': service.get('price')
-                        })
+                        all_services.append(service)
 
             start = (page - 1) * PER_PAGE
             end = start + PER_PAGE
@@ -244,9 +229,9 @@ def import_from_cache_route():
 
         if service_to_add:
             db.add_service(
-                name=name, # Use the name from the form
+                name=name,
                 category_id=int(category_id),
-                description='',
+                description=service_to_add.get('description', ''),
                 api_service_id=service_to_add.get('id'),
                 api_config_id=None,
                 price=float(price),
@@ -254,7 +239,7 @@ def import_from_cache_route():
                 qty_values=service_to_add.get('qty_values'),
                 available=service_to_add.get('available', True)
             )
-            flash(f"تم استيراد الخدمة '{service_to_add.get('name')}' بنجاح!", 'success')
+            flash(f"تم استيراد الخدمة '{name}' بنجاح!", 'success')
         else:
             flash(f"لم يتم العثور على الخدمة بالمعرف {service_id} في ملف الكاش.", 'danger')
     except Exception as e:

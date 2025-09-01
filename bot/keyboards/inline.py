@@ -1,17 +1,16 @@
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 def generate_keyboard(items, item_type, back_callback_data=None):
-    keyboard = InlineKeyboardMarkup(row_width=1)
+    keyboard = InlineKeyboardMarkup(row_width=1) # Set to 1 for single-column layout
     buttons = []
     for item in items:
-        # Check if the item is a service and has the required fields
+        button_text = item['name']
+        # Add price and availability emoji for services
         if item_type == 'service':
             price = item.get('price', 0.0)
-            available = item.get('available', False)
+            available = item.get('available', True) # Assume available if not specified
             availability_emoji = "✅" if available else "❌"
             button_text = f"{item['name']} | {price:.2f} {availability_emoji}"
-        else:
-            button_text = item['name']
 
         buttons.append(InlineKeyboardButton(button_text, callback_data=f"{item_type}:{item['id']}"))
 
@@ -23,7 +22,7 @@ def generate_keyboard(items, item_type, back_callback_data=None):
     return keyboard
 
 def main_menu_keyboard():
-    keyboard = InlineKeyboardMarkup(row_width=2)
+    keyboard = InlineKeyboardMarkup(row_width=2) # Main menu can have 2 columns
     services_btn = InlineKeyboardButton("🛍️ الخدمات", callback_data="menu:services")
     my_info_btn = InlineKeyboardButton("ℹ️ معلوماتي", callback_data="menu:my_info")
     my_orders_btn = InlineKeyboardButton("📦 طلباتي", callback_data="menu:my_orders")

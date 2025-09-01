@@ -24,7 +24,8 @@ def register_handlers(bot):
             if qty_rules and isinstance(qty_rules, dict):
                 min_qty = qty_rules.get('min')
                 max_qty = qty_rules.get('max')
-                question += f"\n(الكمية المسموح بها: بين {min_qty} و {max_qty})"
+                if min_qty is not None and max_qty is not None:
+                    question += f"\n(الكمية المسموح بها: بين {min_qty} و {max_qty})"
 
         msg = bot.send_message(user_id, question)
         bot.register_next_step_handler(msg, process_next_param)
@@ -33,8 +34,8 @@ def register_handlers(bot):
         user_id = message.chat.id
         state = user_state.get(user_id)
 
-        if not state:
-            bot.send_message(user_id, "حدث خطأ، يرجى المحاولة من جديد.")
+        if not state or not state.get('service'):
+            bot.send_message(user_id, "حدث خطأ أو انتهت مهلة الجلسة. يرجى إعادة بدء الطلب من قائمة الخدمات.")
             return
 
         param_name = state['params_to_ask'][0]
@@ -64,7 +65,6 @@ def register_handlers(bot):
         user_id = message.chat.id
         state = user_state.get(user_id)
 
-        # This is the definitive fix for the crash
         if not state or not state.get('service'):
             bot.send_message(user_id, "حدث خطأ أو انتهت مهلة الجلسة. يرجى إعادة بدء الطلب من قائمة الخدمات.")
             return
@@ -74,23 +74,20 @@ def register_handlers(bot):
 
         bot.send_message(user_id, f"جاري تقديم طلبك لخدمة '{service['name']}'...")
 
-        base_url = service.get('api_configs', {}).get('base_url')
-        if not base_url:
-            bot.send_message(user_id, "❌ خطأ فادح: لم يتم العثور على رابط API لهذه الخدمة.")
-            return
-
-        api_client = APIClient(base_url=base_url)
+        # This logic was flawed. The bot does not need to manage multiple APIs.
+        # It uses one API defined in the config.
+        api_client = APIClient()
         response = api_client.new_order(service['api_service_id'], collected_params)
 
         if response and response.get('order_id'):
             order_id = response.get('order_id', 'N/A')
-            # Deduct balance
+
             service_price = service.get('price', 0.0)
             db.deduct_balance_from_user(user_id, float(service_price))
-            # Add order to DB
             db.add_order(user_id, service['id'], order_id, 'Completed')
+
             bot.send_message(user_id, f"✅ تم إنشاء طلبك بنجاح!\nرقم الطلب: {order_id}")
-            # Notify admin of success
+
             if ADMIN_ID:
                 user = message.from_user
                 contact_url = f"t.me/{user.username}" if user.username else f"tg://user?id={user.id}"
@@ -107,7 +104,6 @@ def register_handlers(bot):
                 keyboard.add(contact_button)
                 bot.send_message(ADMIN_ID, admin_message, reply_markup=keyboard)
         else:
-            # Handle failed order
             if ADMIN_ID:
                 user = message.from_user
                 params_str = "\n".join([f"- {k}: {v}" for k, v in collected_params.items()])
@@ -137,7 +133,6 @@ def register_handlers(bot):
             bot.answer_callback_query(call.id, "لم يتم العثور على الخدمة.", show_alert=True)
             return
 
-        # Pre-order balance check
         user = db.get_user(user_id)
         user_balance = user.get('balance', 0.0) if user else 0.0
         service_price = service.get('price', float('inf'))
@@ -152,6 +147,26 @@ def register_handlers(bot):
             params_to_ask = json.loads(service.get('params')) if service.get('params') else []
         except (json.JSONDecodeError, TypeError):
             params_to_ask = []
+
+        # If no params, we can't use the dynamic flow. This is for manually added services.
+        if not params_to_ask and service.get('api_service_id') is None:
+            # Manually added service, just notify admin
+            if ADMIN_ID:
+                user = call.from_user
+                admin_message = (
+                    f"📝 طلب خدمة يدوية 📝\n\n"
+                    f"الخدمة: {service['name']}\n"
+                    f"المستخدم: {user.first_name} (@{user.username or 'N/A'})\n"
+                    f"ID: `{user.id}`\n\n"
+                    f"يرجى التواصل مع المستخدم لإكمال الطلب."
+                )
+                contact_url = f"t.me/{user.username}" if user.username else f"tg://user?id={user.id}"
+                keyboard = InlineKeyboardMarkup()
+                contact_button = InlineKeyboardButton("تواصل مع المستخدم", url=contact_url)
+                keyboard.add(contact_button)
+                bot.send_message(ADMIN_ID, admin_message, reply_markup=keyboard, parse_mode='Markdown')
+            bot.edit_message_text("تم إرسال طلبك لهذه الخدمة إلى المسؤول وسيتواصل معك لإكماله.", chat_id=call.message.chat.id, message_id=call.message.message_id)
+            return
 
         user_state[user_id] = {
             'service': service,

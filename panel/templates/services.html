@@ -2,15 +2,8 @@
 
 {% block content %}
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="h2">الخدمات المستوردة</h1>
-        <div class="btn-toolbar mb-2 mb-md-0">
-            <a href="{{ url_for('api_tools_route') }}" class="btn btn-sm btn-outline-primary">
-                الذهاب إلى أدوات API للاستيراد
-            </a>
-        </div>
+        <h1 class="h2">إدارة الخدمات</h1>
     </div>
-
-    <p>هذه هي الخدمات المتاحة حالياً في البوت الخاص بك. يمكنك حذفها من هنا أو إضافة خدمة جديدة يدويًا.</p>
 
     <div class="accordion mb-4" id="manualAddAccordion">
         <div class="accordion-item">
@@ -23,7 +16,7 @@
                 <div class="accordion-body">
                     <form action="{{ url_for('add_manual_service_route') }}" method="post">
                         <div class="row g-3">
-                            <div class="col-sm-6">
+                            <div class="col-sm-12">
                                 <label for="name" class="form-label">اسم الخدمة</label>
                                 <input type="text" class="form-control" name="name" required>
                             </div>
@@ -40,12 +33,23 @@
                                 </select>
                             </div>
                             <div class="col-sm-6">
-                                <label for="api_service_id" class="form-label">معرف الخدمة في الـ API</label>
-                                <input type="number" class="form-control" name="api_service_id" required>
+                                <label for="api_service_id" class="form-label">معرف الخدمة في الـ API (اتركه فارغاً للخدمات اليدوية)</label>
+                                <input type="number" class="form-control" name="api_service_id">
+                            </div>
+                             <div class="col-sm-6">
+                                <label for="available" class="form-label">الحالة</label>
+                                <select class="form-select" name="available">
+                                    <option value="true" selected>متاحة</option>
+                                    <option value="false">غير متاحة</option>
+                                </select>
                             </div>
                             <div class="col-12">
-                                <label for="params" class="form-label">المعلمات (JSON Array)</label>
+                                <label for="params" class="form-label">المعلمات المطلوبة (بتنسيق JSON)</label>
                                 <textarea class="form-control" name="params" rows="2" placeholder='["param1", "param2"]'></textarea>
+                            </div>
+                             <div class="col-12">
+                                <label for="qty_values" class="form-label">قواعد الكمية (بتنسيق JSON، اختياري)</label>
+                                <textarea class="form-control" name="qty_values" rows="2" placeholder='{"min": 100, "max": 50000}'></textarea>
                             </div>
                             <div class="col-12">
                                 <button type="submit" class="btn btn-primary">إضافة الخدمة</button>
@@ -57,6 +61,7 @@
         </div>
     </div>
 
+    <h2 class="mt-4">الخدمات الحالية</h2>
     <div class="table-responsive">
         <table class="table table-striped table-sm table-hover">
             <thead class="table-dark">
@@ -64,7 +69,8 @@
                     <th scope="col">#</th>
                     <th scope="col">الاسم</th>
                     <th scope="col">الفئة</th>
-                    <th scope="col">معرف API</th>
+                    <th scope="col">السعر</th>
+                    <th scope="-col">الحالة</th>
                     <th scope="col">إجراءات</th>
                 </tr>
             </thead>
@@ -74,14 +80,15 @@
                         <td>{{ service.id }}</td>
                         <td>{{ service.name }}</td>
                         <td>{{ service.categories.name if service.categories else 'N/A' }}</td>
-                        <td>{{ service.api_service_id }}</td>
+                        <td>{{ "%.2f"|format(service.price|float) }}</td>
+                        <td>{% if service.available %} ✅ {% else %} ❌ {% endif %}</td>
                         <td>
                             <a href="{{ url_for('delete_service_route', id=service.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('هل أنت متأكد؟')">حذف</a>
                         </td>
                     </tr>
                 {% else %}
                     <tr>
-                        <td colspan="5" class="text-center">لا توجد خدمات مستوردة لعرضها.</td>
+                        <td colspan="6" class="text-center">لا توجد خدمات. يمكنك إضافتها يدويًا أو استيرادها من صفحة أدوات API.</td>
                     </tr>
                 {% endfor %}
             </tbody>
