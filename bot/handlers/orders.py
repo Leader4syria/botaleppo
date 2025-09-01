@@ -3,6 +3,7 @@ from bot.utils import db
 from bot.config import ADMIN_ID, ORANOS_API_URL
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import json
+import uuid
 
 def register_handlers(bot):
     user_state = {}
@@ -77,13 +78,16 @@ def register_handlers(bot):
         # If service has no api_service_id, it's a manual order.
         if service.get('api_service_id') is None:
             params_json = json.dumps(collected_params, ensure_ascii=False)
-            order_id = db.add_order(user_id, service['id'], None, 'Pending', params=params_json)
+            # Generate a client-side UUID to use as a reference.
+            manual_order_ref = str(uuid.uuid4())
 
-            if order_id:
+            # Pass the UUID as the external_order_id for reference.
+            order_added_successfully = db.add_order(user_id, service['id'], manual_order_ref, 'Pending', params=params_json)
+
+            if order_added_successfully:
                 service_price = service.get('price', 0.0)
-                print(f"DEBUG: Attempting to deduct balance for MANUAL order. User ID: {user_id}, Amount: {service_price}")
                 db.deduct_balance_from_user(user_id, float(service_price))
-                bot.send_message(user_id, f"✅ تم استلام طلبك بنجاح!\nسيتم معالجته يدويًا من قبل المسؤول.\nرقم الطلب للمراجعة: {order_id}")
+                bot.send_message(user_id, f"✅ تم استلام طلبك بنجاح!\nسيتم معالجته يدويًا.\nرقم المراجعة: `{manual_order_ref}`", parse_mode='Markdown')
 
                 if ADMIN_ID:
                     user = message.from_user
@@ -92,14 +96,14 @@ def register_handlers(bot):
                     admin_message = (
                         f"📝 طلب خدمة يدوية (مع معلمات) 📝\n\n"
                         f"الخدمة: {service['name']}\n"
-                        f"رقم الطلب: {order_id}\n"
+                        f"رقم المراجعة: `{manual_order_ref}`\n"
                         f"المعلمات:\n{params_str}\n"
                         f"مقدم الطلب: {user.first_name} (@{user.username or 'N/A'})"
                     )
                     keyboard = InlineKeyboardMarkup()
                     contact_button = InlineKeyboardButton("تواصل مع المستخدم", url=contact_url)
                     keyboard.add(contact_button)
-                    bot.send_message(ADMIN_ID, admin_message, reply_markup=keyboard)
+                    bot.send_message(ADMIN_ID, admin_message, reply_markup=keyboard, parse_mode='Markdown')
             else:
                 bot.send_message(user_id, "حدث خطأ أثناء إنشاء طلبك اليدوي. يرجى المحاولة مرة أخرى أو التواصل مع الإدارة.")
 
@@ -107,7 +111,6 @@ def register_handlers(bot):
             if not ORANOS_API_URL:
                 bot.send_message(user_id, "خطأ في الإعدادات: رابط الـ API غير محدد. تم إبلاغ المسؤول.")
                 print("CRITICAL: ORANOS_API_URL is not set.")
-                # Optionally notify admin
                 return
 
             api_client = APIClient(base_url=ORANOS_API_URL)
@@ -115,12 +118,9 @@ def register_handlers(bot):
 
             if response and response.get('order_id'):
                 external_order_id = response.get('order_id', 'N/A')
-
                 service_price = service.get('price', 0.0)
-                print(f"DEBUG: Attempting to deduct balance for API order. User ID: {user_id}, Amount: {service_price}")
                 db.deduct_balance_from_user(user_id, float(service_price))
                 db.add_order(user_id, service['id'], external_order_id, 'Completed')
-
                 bot.send_message(user_id, f"✅ تم إنشاء طلبك بنجاح!\nرقم الطلب: {external_order_id}")
 
                 if ADMIN_ID:

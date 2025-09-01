@@ -128,13 +128,19 @@ def orders_route():
         return redirect(url_for('login'))
     orders = db.get_all_orders()
     if orders:
+        # Manually fetch users and create a map for efficient lookup
+        users = db.get_users()
+        users_map = {user['id']: user for user in users}
+
         for order in orders:
+            # Attach the user object to the order
+            order['users'] = users_map.get(order['user_id'])
+
+            # Parse params if they exist
             if order.get('params'):
                 try:
-                    # The params are stored as a JSON string, parse them for display
                     order['params_parsed'] = json.loads(order['params'])
                 except (json.JSONDecodeError, TypeError):
-                    # If parsing fails, just show the raw string
                     order['params_parsed'] = {'error': 'Could not parse params', 'raw': order['params']}
     return render_template('orders.html', orders=orders)
 
