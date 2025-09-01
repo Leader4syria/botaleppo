@@ -49,3 +49,25 @@ def get_orders_for_user(user_id):
     except Exception as e:
         print(f"Error fetching orders for user: {e}")
         return []
+
+def add_balance_to_user(user_id, amount_to_add):
+    try:
+        response = supabase.rpc('increment_balance', {
+            'user_id_in': user_id,
+            'amount_in': amount_to_add
+        }).execute()
+        return response.data
+    except Exception as e:
+        print(f"Error adding balance: {e}")
+        return None
+
+def deduct_balance_from_user(user_id, amount_to_deduct):
+    try:
+        response = supabase.rpc('decrement_balance', {
+            'user_id_in': user_id,
+            'amount_in': amount_to_deduct
+        }).execute()
+        return response.data
+    except Exception as e:
+        print(f"Error deducting balance: {e}")
+        return None

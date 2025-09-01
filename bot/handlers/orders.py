@@ -72,21 +72,48 @@ def register_handlers(bot):
         service = state['service']
         collected_params = state['collected_params']
 
-        bot.send_message(user_id, f"جاري تقديم طلبك لخدمة '{service['name']}'...")
+        # --- Price Calculation Logic ---
+        base_price = float(service.get('price', 0.0))
+        quantity = 1
+        qty_param_name = next((k for k in collected_params if k.lower() == 'qty'), None)
 
-        # This logic was flawed. The bot does not need to manage multiple APIs.
-        # It uses one API defined in the config.
+        if qty_param_name:
+            try:
+                quantity = int(collected_params[qty_param_name])
+            except (ValueError, TypeError):
+                bot.send_message(user_id, "حدث خطأ في تحديد الكمية. يرجى المحاولة مرة أخرى.")
+                if user_id in user_state: del user_state[user_id]
+                return
+
+        total_price = base_price * quantity
+
+        # --- Final Balance Check ---
+        user = db.get_user(user_id)
+        user_balance = float(user.get('balance', 0.0)) if user else 0.0
+
+        if user_balance < total_price:
+            bot.send_message(user_id, f"رصيدك الحالي ({user_balance:.2f}) غير كافٍ لإكمال هذا الطلب بالتكلفة الإجمالية ({total_price:.2f}).")
+            if user_id in user_state: del user_state[user_id]
+            return
+
+        bot.send_message(user_id, f"جاري تقديم طلبك لخدمة '{service['name']}' بتكلفة {total_price:.2f}...")
+
         api_client = APIClient()
         response = api_client.new_order(service['api_service_id'], collected_params)
 
         if response and response.get('order_id'):
             order_id = response.get('order_id', 'N/A')
 
-            service_price = service.get('price', 0.0)
-            db.deduct_balance_from_user(user_id, float(service_price))
+            # Deduct the calculated total price
+            db.deduct_balance_from_user(user_id, total_price)
             db.add_order(user_id, service['id'], order_id, 'Completed')
 
-            bot.send_message(user_id, f"✅ تم إنشاء طلبك بنجاح!\nرقم الطلب: {order_id}")
+            success_message = (
+                f"✅ تم إنشاء طلبك بنجاح!\n"
+                f"<b>رقم الطلب:</b> {order_id}\n"
+                f"<b>التكلفة:</b> {total_price:.2f}"
+            )
+            bot.send_message(user_id, success_message, parse_mode='HTML')
 
             if ADMIN_ID:
                 user = message.from_user
@@ -94,15 +121,16 @@ def register_handlers(bot):
                 params_str = "\n".join([f"- {k}: {v}" for k, v in collected_params.items()])
                 admin_message = (
                     f"🎉 طلب جديد ناجح! 🎉\n\n"
-                    f"الخدمة: {service['name']}\n"
-                    f"المعلمات:\n{params_str}\n"
-                    f"مقدم الطلب: {user.first_name} (@{user.username or 'N/A'})\n"
-                    f"معرف الطلب: {order_id}"
+                    f"<b>الخدمة:</b> {service['name']}\n"
+                    f"<b>التكلفة:</b> {total_price:.2f}\n"
+                    f"<b>المعلمات:</b>\n{params_str}\n"
+                    f"<b>مقدم الطلب:</b> {user.first_name} (@{user.username or 'N/A'})\n"
+                    f"<b>معرف الطلب:</b> {order_id}"
                 )
                 keyboard = InlineKeyboardMarkup()
                 contact_button = InlineKeyboardButton("تواصل مع المستخدم", url=contact_url)
                 keyboard.add(contact_button)
-                bot.send_message(ADMIN_ID, admin_message, reply_markup=keyboard)
+                bot.send_message(ADMIN_ID, admin_message, reply_markup=keyboard, parse_mode='HTML')
         else:
             if ADMIN_ID:
                 user = message.from_user
