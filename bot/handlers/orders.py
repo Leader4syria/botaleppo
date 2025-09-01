@@ -1,6 +1,6 @@
 from bot.utils.api import APIClient
 from bot.utils import db
-from bot.config import ADMIN_ID
+from bot.config import ADMIN_ID, ORANOS_API_URL
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import json
 
@@ -103,7 +103,13 @@ def register_handlers(bot):
                 bot.send_message(user_id, "حدث خطأ أثناء إنشاء طلبك اليدوي. يرجى المحاولة مرة أخرى أو التواصل مع الإدارة.")
 
         else: # This is an API order
-            api_client = APIClient()
+            if not ORANOS_API_URL:
+                bot.send_message(user_id, "خطأ في الإعدادات: رابط الـ API غير محدد. تم إبلاغ المسؤول.")
+                print("CRITICAL: ORANOS_API_URL is not set.")
+                # Optionally notify admin
+                return
+
+            api_client = APIClient(base_url=ORANOS_API_URL)
             response = api_client.new_order(service['api_service_id'], collected_params)
 
             if response and response.get('order_id'):

@@ -150,7 +150,7 @@ def deduct_balance_from_user(user_id, amount_to_deduct):
 
 def get_all_orders():
     try:
-        response = supabase.table('orders').select('*, services(name), users(first_name, username)').order('created_at', desc=True).execute()
+        response = supabase.table('orders').select('*, services(name)').order('created_at', desc=True).execute()
         return response.data
     except Exception as e:
         print(f"Error fetching all orders: {e}")
