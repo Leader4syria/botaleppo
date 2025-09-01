@@ -18,8 +18,6 @@ def register_handlers(bot):
         param_name = state['params_to_ask'][0]
         question = f"الرجاء إدخال '{param_name}':"
 
-        # Check for quantity validation
-        # ASSUMPTION: The quantity parameter is named 'qty'
         if param_name.lower() == 'qty':
             qty_rules = state['service'].get('qty_values')
             if qty_rules and isinstance(qty_rules, dict):
@@ -40,7 +38,6 @@ def register_handlers(bot):
 
         param_name = state['params_to_ask'][0]
 
-        # Validate quantity if applicable
         if param_name.lower() == 'qty':
             try:
                 quantity = int(message.text)
@@ -50,18 +47,15 @@ def register_handlers(bot):
                     max_qty = int(qty_rules.get('max', float('inf')))
                     if not (min_qty <= quantity <= max_qty):
                         bot.reply_to(message, f"الكمية خارج النطاق المسموح به. الرجاء المحاولة مرة أخرى.")
-                        ask_next_param(message) # Re-ask the same question
+                        ask_next_param(message)
                         return
             except (ValueError, TypeError):
                 bot.reply_to(message, "الكمية يجب أن تكون رقماً. الرجاء المحاولة مرة أخرى.")
-                ask_next_param(message) # Re-ask
+                ask_next_param(message)
                 return
 
-        # Store the valid parameter and remove it from the list to ask
         state['collected_params'][param_name] = message.text
         state['params_to_ask'].pop(0)
-
-        # Ask the next question
         ask_next_param(message)
 
     def finalize_order(message):
@@ -77,12 +71,6 @@ def register_handlers(bot):
 
         bot.send_message(user_id, f"جاري تقديم طلبك لخدمة '{service['name']}'...")
 
-        # The service object from get_all_data now lacks the base_url.
-        # This is a flaw in my plan. The bot needs to know which API config to use.
-        # I will fetch it here.
-        # This is inefficient, the service query should join the api_config.
-        # I will assume the join is not possible and do a separate query.
-        # Let's re-read db.py. I did add it to the query. Good.
         base_url = service.get('api_configs', {}).get('base_url')
         if not base_url:
             bot.send_message(user_id, "❌ خطأ فادح: لم يتم العثور على رابط API لهذه الخدمة.")
@@ -144,11 +132,10 @@ def register_handlers(bot):
             bot.send_message(call.message.chat.id, "لم يتم العثور على الخدمة.")
             return
 
-        # Start the process
-        params_to_ask = json.loads(service.get('params')) if service.get('params') else []
-        if not params_to_ask:
-            bot.send_message(call.message.chat.id, "لا توجد معلمات مطلوبة لهذه الخدمة، لا يمكن إكمال الطلب.")
-            return
+        try:
+            params_to_ask = json.loads(service.get('params')) if service.get('params') else []
+        except (json.JSONDecodeError, TypeError):
+            params_to_ask = []
 
         user_state[user_id] = {
             'service': service,
@@ -156,7 +143,6 @@ def register_handlers(bot):
             'collected_params': {}
         }
 
-        # Edit the previous message to show the description and start button
         description = service.get('description', 'لا يوجد وصف متاح.')
         text = f"<b>{service['name']}</b>\n\n{description}"
         keyboard = InlineKeyboardMarkup()
@@ -167,6 +153,5 @@ def register_handlers(bot):
     @bot.callback_query_handler(func=lambda call: call.data == 'start_order_flow')
     def handle_order_start_callback(call):
         bot.answer_callback_query(call.id)
-        # Delete the description message and start asking questions
         bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
         ask_next_param(call.message)
