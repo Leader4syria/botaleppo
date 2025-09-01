@@ -18,6 +18,7 @@ def register_handlers(bot):
         param_name = state['params_to_ask'][0]
         question = f"الرجاء إدخال '{param_name}':"
 
+        # Check for quantity validation (assuming param name is 'qty')
         if param_name.lower() == 'qty':
             qty_rules = state['service'].get('qty_values')
             if qty_rules and isinstance(qty_rules, dict):
@@ -38,6 +39,7 @@ def register_handlers(bot):
 
         param_name = state['params_to_ask'][0]
 
+        # Validate quantity if applicable
         if param_name.lower() == 'qty':
             try:
                 quantity = int(message.text)
@@ -47,11 +49,11 @@ def register_handlers(bot):
                     max_qty = int(qty_rules.get('max', float('inf')))
                     if not (min_qty <= quantity <= max_qty):
                         bot.reply_to(message, f"الكمية خارج النطاق المسموح به. الرجاء المحاولة مرة أخرى.")
-                        ask_next_param(message)
+                        ask_next_param(message) # Re-ask the same question
                         return
             except (ValueError, TypeError):
                 bot.reply_to(message, "الكمية يجب أن تكون رقماً. الرجاء المحاولة مرة أخرى.")
-                ask_next_param(message)
+                ask_next_param(message) # Re-ask
                 return
 
         state['collected_params'][param_name] = message.text
@@ -62,6 +64,7 @@ def register_handlers(bot):
         user_id = message.chat.id
         state = user_state.get(user_id)
 
+        # This is the definitive fix for the crash
         if not state or not state.get('service'):
             bot.send_message(user_id, "حدث خطأ أو انتهت مهلة الجلسة. يرجى إعادة بدء الطلب من قائمة الخدمات.")
             return
@@ -81,13 +84,13 @@ def register_handlers(bot):
 
         if response and response.get('order_id'):
             order_id = response.get('order_id', 'N/A')
-
-            # Deduct balance from user
+            # Deduct balance
             service_price = service.get('price', 0.0)
             db.deduct_balance_from_user(user_id, float(service_price))
-
+            # Add order to DB
             db.add_order(user_id, service['id'], order_id, 'Completed')
             bot.send_message(user_id, f"✅ تم إنشاء طلبك بنجاح!\nرقم الطلب: {order_id}")
+            # Notify admin of success
             if ADMIN_ID:
                 user = message.from_user
                 contact_url = f"t.me/{user.username}" if user.username else f"tg://user?id={user.id}"
@@ -104,7 +107,7 @@ def register_handlers(bot):
                 keyboard.add(contact_button)
                 bot.send_message(ADMIN_ID, admin_message, reply_markup=keyboard)
         else:
-            # Any failed order is now forwarded to the admin
+            # Handle failed order
             if ADMIN_ID:
                 user = message.from_user
                 params_str = "\n".join([f"- {k}: {v}" for k, v in collected_params.items()])
@@ -117,8 +120,6 @@ def register_handlers(bot):
                     f"الرجاء معالجة الطلب يدويًا."
                 )
                 bot.send_message(ADMIN_ID, admin_message, parse_mode='Markdown')
-
-            # Inform the user
             bot.send_message(user_id, "⏳ حدث خطأ أثناء معالجة طلبك. تم إرسال التفاصيل إلى المسؤول لمتابعة الطلب يدويًا.")
 
         if user_id in user_state:
@@ -145,7 +146,8 @@ def register_handlers(bot):
             bot.answer_callback_query(call.id, f"رصيدك الحالي ({user_balance:.2f}) غير كافٍ. سعر هذه الخدمة هو {service_price:.2f}.", show_alert=True)
             return
 
-        bot.answer_callback_query(call.id) # Answer only if check passes
+        bot.answer_callback_query(call.id)
+
         try:
             params_to_ask = json.loads(service.get('params')) if service.get('params') else []
         except (json.JSONDecodeError, TypeError):
@@ -158,7 +160,8 @@ def register_handlers(bot):
         }
 
         description = service.get('description', 'لا يوجد وصف متاح.')
-        text = f"<b>{service['name']}</b>\n\n{description}"
+        price_str = f"السعر: {service.get('price', 'N/A')}"
+        text = f"<b>{service['name']}</b>\n\n{description}\n\n{price_str}"
         keyboard = InlineKeyboardMarkup()
         order_button = InlineKeyboardButton("📝 طلب الخدمة الآن", callback_data=f"start_order_flow")
         keyboard.add(order_button)
