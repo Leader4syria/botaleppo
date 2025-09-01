@@ -95,12 +95,43 @@ def add_balance_route():
     amount = request.form.get('amount', type=float)
 
     if user_id and amount:
-        db.add_balance_to_user(user_id, amount)
+        new_balance = db.add_balance_to_user(user_id, amount)
         flash(f"تمت إضافة رصيد بقيمة {amount} للمستخدم {user_id} بنجاح!", 'success')
+        # Send notification to user
+        if hasattr(app, 'bot') and new_balance is not None:
+            from bot.notifications import send_balance_update
+            send_balance_update(app.bot, user_id, amount, new_balance)
     else:
         flash('معرف المستخدم أو المبلغ غير صالح.', 'danger')
 
     return redirect(url_for('users_route'))
+
+# --- Order Management ---
+@app.route('/orders')
+def orders_route():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    orders = db.get_all_orders()
+    return render_template('orders.html', orders=orders)
+
+@app.route('/orders/update_status/<int:order_id>', methods=['POST'])
+def update_order_status_route(order_id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    new_status = request.form.get('new_status')
+    if new_status:
+        db.update_order_status(order_id, new_status)
+        flash(f"تم تحديث حالة الطلب رقم {order_id} إلى '{new_status}'.", 'success')
+        # Send notification to user
+        order = db.get_order(order_id)
+        if hasattr(app, 'bot') and order:
+            from bot.notifications import send_status_update
+            send_status_update(app.bot, order['user_id'], order_id, new_status)
+    else:
+        flash('لم يتم تحديد حالة جديدة.', 'warning')
+
+    return redirect(url_for('orders_route'))
 
 # --- API TOOLS & CACHING ---
 @app.route('/api_tools')
@@ -197,7 +228,8 @@ def import_from_cache_route():
                 api_config_id=None,
                 price=float(price),
                 params=json.dumps(service_to_add.get('params', [])),
-                qty_values=service_to_add.get('qty_values')
+                qty_values=service_to_add.get('qty_values'),
+                available=service_to_add.get('available', True)
             )
             flash(f"تم استيراد الخدمة '{service_to_add.get('name')}' بنجاح!", 'success')
         else:

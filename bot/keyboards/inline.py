@@ -2,7 +2,19 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 def generate_keyboard(items, item_type, back_callback_data=None):
     keyboard = InlineKeyboardMarkup(row_width=1)
-    buttons = [InlineKeyboardButton(item['name'], callback_data=f"{item_type}:{item['id']}") for item in items]
+    buttons = []
+    for item in items:
+        # Check if the item is a service and has the required fields
+        if item_type == 'service':
+            price = item.get('price', 0.0)
+            available = item.get('available', False)
+            availability_emoji = "✅" if available else "❌"
+            button_text = f"{item['name']} | {price:.2f} {availability_emoji}"
+        else:
+            button_text = item['name']
+
+        buttons.append(InlineKeyboardButton(button_text, callback_data=f"{item_type}:{item['id']}"))
+
     keyboard.add(*buttons)
 
     if back_callback_data:

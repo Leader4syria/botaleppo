@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">إدارة الطلبات</h1>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-sm table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th scope="col">رقم الطلب</th>
+                    <th scope="col">المستخدم</th>
+                    <th scope="col">الخدمة</th>
+                    <th scope="col">رقم الطلب الخارجي</th>
+                    <th scope="col">الحالة الحالية</th>
+                    <th scope="col">تغيير الحالة</th>
+                    <th scope="col">تاريخ الطلب</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                    <tr>
+                        <td>{{ order.id }}</td>
+                        <td>{{ order.users.first_name if order.users else 'N/A' }} (<code>{{ order.user_id }}</code>)</td>
+                        <td>{{ order.services.name if order.services else 'N/A' }}</td>
+                        <td><code>{{ order.external_order_id }}</code></td>
+                        <td><span class="badge bg-info">{{ order.status }}</span></td>
+                        <td>
+                            <form action="{{ url_for('update_order_status_route', order_id=order.id) }}" method="post" class="d-flex">
+                                <select name="new_status" class="form-select form-select-sm me-2">
+                                    <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>قيد الانتظار</option>
+                                    <option value="in_progress" {% if order.status == 'in_progress' %}selected{% endif %}>قيد التنفيذ</option>
+                                    <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>مكتمل</option>
+                                    <option value="canceled" {% if order.status == 'canceled' %}selected{% endif %}>ملغى</option>
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-primary">تحديث</button>
+                            </form>
+                        </td>
+                        <td>{{ order.created_at.split('T')[0] }}</td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center">لا توجد طلبات لعرضها.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

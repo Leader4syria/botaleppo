@@ -8,11 +8,14 @@ from bot.config import TELEGRAM_BOT_TOKEN
 from bot.handlers import start, categories, orders, menu
 from panel.app import app as flask_app
 
-def run_flask():
+def run_flask(bot_instance):
+    flask_app.bot = bot_instance
     flask_app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
 
 if __name__ == "__main__":
-    flask_thread = threading.Thread(target=run_flask)
+    bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
+
+    flask_thread = threading.Thread(target=run_flask, args=(bot,))
     flask_thread.daemon = True
     flask_thread.start()
 

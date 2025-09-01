@@ -56,7 +56,7 @@ def get_service(id):
         print(f"Error fetching service: {e}")
         return None
 
-def add_service(name, category_id, description, api_service_id, api_config_id, price, params, qty_values):
+def add_service(name, category_id, description, api_service_id, api_config_id, price, params, qty_values, available):
     try:
         response = supabase.table('services').insert({
             'name': name,
@@ -66,7 +66,8 @@ def add_service(name, category_id, description, api_service_id, api_config_id, p
             'api_config_id': api_config_id,
             'price': price,
             'params': params,
-            'qty_values': qty_values
+            'qty_values': qty_values,
+            'available': available
         }).execute()
         return response.data
     except Exception as e:
@@ -109,6 +110,7 @@ def add_balance_to_user(user_id, amount_to_add):
             'user_id_in': user_id,
             'amount_in': amount_to_add
         }).execute()
+        # The RPC function now returns the new balance directly
         return response.data
     except Exception as e:
         print(f"Error adding balance: {e}")
@@ -123,4 +125,30 @@ def deduct_balance_from_user(user_id, amount_to_deduct):
         return response.data
     except Exception as e:
         print(f"Error deducting balance: {e}")
+        return None
+
+# --- Order Management ---
+
+def get_all_orders():
+    try:
+        response = supabase.table('orders').select('*, services(name), users(first_name, username)').order('created_at', desc=True).execute()
+        return response.data
+    except Exception as e:
+        print(f"Error fetching all orders: {e}")
+        return []
+
+def get_order(order_id):
+    try:
+        response = supabase.table('orders').select('user_id').eq('id', order_id).single().execute()
+        return response.data
+    except Exception as e:
+        print(f"Error fetching order: {e}")
+        return None
+
+def update_order_status(order_id, new_status):
+    try:
+        response = supabase.table('orders').update({'status': new_status}).eq('id', order_id).execute()
+        return response.data
+    except Exception as e:
+        print(f"Error updating order status: {e}")
         return None
