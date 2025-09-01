@@ -137,13 +137,15 @@ def add_balance_to_user(user_id, amount_to_add):
 
 def deduct_balance_from_user(user_id, amount_to_deduct):
     try:
+        print(f"DEBUG: [PANEL] Calling Supabase RPC 'decrement_balance' for User ID: {user_id}, Amount: {amount_to_deduct}")
         response = supabase.rpc('decrement_balance', {
             'user_id_in': user_id,
             'amount_in': amount_to_deduct
         }).execute()
+        print(f"DEBUG: [PANEL] Supabase response for 'decrement_balance': {response}")
         return response.data
     except Exception as e:
-        print(f"Error deducting balance: {e}")
+        print(f"ERROR: [PANEL] Exception during balance deduction for User ID {user_id}: {e}")
         return None
 
 # --- Order Management ---

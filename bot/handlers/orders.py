@@ -81,6 +81,7 @@ def register_handlers(bot):
 
             if order_id:
                 service_price = service.get('price', 0.0)
+                print(f"DEBUG: Attempting to deduct balance for MANUAL order. User ID: {user_id}, Amount: {service_price}")
                 db.deduct_balance_from_user(user_id, float(service_price))
                 bot.send_message(user_id, f"✅ تم استلام طلبك بنجاح!\nسيتم معالجته يدويًا من قبل المسؤول.\nرقم الطلب للمراجعة: {order_id}")
 
@@ -116,6 +117,7 @@ def register_handlers(bot):
                 external_order_id = response.get('order_id', 'N/A')
 
                 service_price = service.get('price', 0.0)
+                print(f"DEBUG: Attempting to deduct balance for API order. User ID: {user_id}, Amount: {service_price}")
                 db.deduct_balance_from_user(user_id, float(service_price))
                 db.add_order(user_id, service['id'], external_order_id, 'Completed')
 
