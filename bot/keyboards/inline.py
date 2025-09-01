@@ -23,11 +23,14 @@ def generate_keyboard(items, item_type, back_callback_data=None):
 
 def main_menu_keyboard():
     keyboard = InlineKeyboardMarkup(row_width=2) # Main menu can have 2 columns
-    services_btn = InlineKeyboardButton("🛍️ الخدمات", callback_data="menu:services")
+    services_btn = InlineKeyboardButton("🛍️ طلب الخدمات", callback_data="menu:services")
     my_info_btn = InlineKeyboardButton("ℹ️ معلوماتي", callback_data="menu:my_info")
     my_orders_btn = InlineKeyboardButton("📦 طلباتي", callback_data="menu:my_orders")
+    show_all_btn = InlineKeyboardButton("📋 عرض كل الخدمات", callback_data="menu:show_all")
     contact_us_btn = InlineKeyboardButton("📞 تواصل معنا", callback_data="menu:contact_us")
+
     keyboard.add(services_btn)
     keyboard.add(my_info_btn, my_orders_btn)
+    keyboard.add(show_all_btn)
     keyboard.add(contact_us_btn)
     return keyboard

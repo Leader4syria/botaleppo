@@ -30,6 +30,18 @@
     </div>
 </div>
 
+<div class="card mb-4">
+    <div class="card-header">
+        <h4>استيراد شامل للخدمات</h4>
+    </div>
+    <div class="card-body">
+        <p>استيراد جميع الخدمات الجديدة من ملف الكاش إلى قاعدة البيانات. سيقوم النظام تلقائيًا بإنشاء أي تصنيفات غير موجودة وتجنب إضافة الخدمات المكررة.</p>
+        <form action="{{ url_for('import_all_from_cache_route') }}" method="POST" onsubmit="return confirm('هل أنت متأكد أنك تريد استيراد جميع الخدمات؟ قد تستغرق هذه العملية بعض الوقت.');">
+            <button type="submit" class="btn btn-success">استيراد جميع الخدمات الآن</button>
+        </form>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-12">
         <h4>رد السيرفر الخام</h4>

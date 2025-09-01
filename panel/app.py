@@ -247,5 +247,80 @@ def import_from_cache_route():
 
     return redirect(url_for('services_route'))
 
+@app.route('/import_all_from_cache', methods=['POST'])
+def import_all_from_cache_route():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    if not os.path.exists(CACHE_FILE):
+        flash('ملف الكاش غير موجود. يرجى تحديث الكاش أولاً.', 'warning')
+        return redirect(url_for('api_tools_route'))
+
+    try:
+        with open(CACHE_FILE, "r", encoding="utf-8") as f:
+            all_api_services = json.load(f)
+
+        if not isinstance(all_api_services, list):
+            flash('صيغة ملف الكاش غير صالحة.', 'danger')
+            return redirect(url_for('api_tools_route'))
+
+        existing_services = db.get_services()
+        existing_api_ids = {str(s['api_service_id']) for s in existing_services if s['api_service_id']}
+
+        local_categories = db.get_categories()
+        category_map = {cat['name']: cat['id'] for cat in local_categories}
+
+        imported_count = 0
+        skipped_count = 0
+
+        for service in all_api_services:
+            if not isinstance(service, dict) or 'id' not in service:
+                skipped_count += 1
+                continue
+
+            api_id_str = str(service['id'])
+            if api_id_str in existing_api_ids:
+                skipped_count += 1
+                continue
+
+            # Handle category
+            category_name = service.get('category', 'خدمات مستوردة').strip()
+            if not category_name: category_name = 'خدمات مستوردة'
+
+            if category_name not in category_map:
+                new_cat = db.add_category(category_name)
+                if new_cat and new_cat[0]:
+                    category_id = new_cat[0]['id']
+                    category_map[category_name] = category_id
+                else:
+                    # Fallback if category creation fails
+                    skipped_count += 1
+                    continue
+            else:
+                category_id = category_map[category_name]
+
+            # Add the service
+            db.add_service(
+                name=service.get('name', 'خدمة بدون اسم'),
+                category_id=category_id,
+                description=service.get('description', ''),
+                api_service_id=service.get('id'),
+                api_config_id=None, # Assuming single API provider for now
+                price=float(service.get('price', 0.0)),
+                params=json.dumps(service.get('params', [])),
+                qty_values=service.get('qty_values'),
+                available=service.get('available', True)
+            )
+            existing_api_ids.add(api_id_str) # Add to set to prevent re-importing in same run
+            imported_count += 1
+
+        flash(f'اكتمل الاستيراد! تمت إضافة {imported_count} خدمة جديدة، وتم تخطي {skipped_count} خدمة (مكررة أو غير صالحة).', 'success')
+
+    except Exception as e:
+        flash(f"فشل استيراد الخدمات بشكل مجمع: {e}", 'danger')
+
+    return redirect(url_for('api_tools_route'))
+
+
 if __name__ == '__main__':
     app.run(debug=True)

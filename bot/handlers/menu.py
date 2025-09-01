@@ -1,6 +1,6 @@
 from bot.keyboards.inline import main_menu_keyboard
 from bot.utils.decorators import check_subscription
-from bot.handlers.categories import show_main_categories
+from bot.handlers.categories import show_all_services_formatted, show_main_categories
 from bot.utils.api import APIClient
 
 from bot.utils import db
@@ -32,8 +32,12 @@ def register_handlers(bot):
         action = call.data.split(':')[1]
 
         if action == 'services':
-            # Edit the message to show the top-level categories
-            show_main_categories(bot, call.message) # Needs to be adapted to take call.message
+            # This should show the interactive category menu
+            show_main_categories(bot, call.message)
+
+        elif action == 'show_all':
+            # This shows the static, formatted list of all services
+            show_all_services_formatted(bot, call.message)
 
         elif action == 'my_info':
             user = call.from_user
