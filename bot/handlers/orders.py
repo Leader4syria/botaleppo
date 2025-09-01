@@ -81,6 +81,11 @@ def register_handlers(bot):
 
         if response and response.get('order_id'):
             order_id = response.get('order_id', 'N/A')
+
+            # Deduct balance from user
+            service_price = service.get('price', 0.0)
+            db.deduct_balance_from_user(user_id, float(service_price))
+
             db.add_order(user_id, service['id'], order_id, 'Completed')
             bot.send_message(user_id, f"✅ تم إنشاء طلبك بنجاح!\nرقم الطلب: {order_id}")
             if ADMIN_ID:
@@ -121,7 +126,6 @@ def register_handlers(bot):
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith('service:'))
     def handle_service_selection(call):
-        bot.answer_callback_query(call.id)
         user_id = call.from_user.id
         service_id = int(call.data.split(':')[1])
 
@@ -129,9 +133,19 @@ def register_handlers(bot):
         service = next((s for s in all_services if s['id'] == service_id), None)
 
         if not service:
-            bot.send_message(call.message.chat.id, "لم يتم العثور على الخدمة.")
+            bot.answer_callback_query(call.id, "لم يتم العثور على الخدمة.", show_alert=True)
             return
 
+        # Pre-order balance check
+        user = db.get_user(user_id)
+        user_balance = user.get('balance', 0.0) if user else 0.0
+        service_price = service.get('price', float('inf'))
+
+        if float(user_balance) < float(service_price):
+            bot.answer_callback_query(call.id, f"رصيدك الحالي ({user_balance:.2f}) غير كافٍ. سعر هذه الخدمة هو {service_price:.2f}.", show_alert=True)
+            return
+
+        bot.answer_callback_query(call.id) # Answer only if check passes
         try:
             params_to_ask = json.loads(service.get('params')) if service.get('params') else []
         except (json.JSONDecodeError, TypeError):

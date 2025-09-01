@@ -78,6 +78,30 @@ def delete_service_route(id):
     flash('تم حذف الخدمة بنجاح.', 'success')
     return redirect(url_for('services_route'))
 
+# --- User Management ---
+@app.route('/users')
+def users_route():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    users = db.get_users()
+    return render_template('users.html', users=users)
+
+@app.route('/add_balance', methods=['POST'])
+def add_balance_route():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    user_id = request.form.get('user_id', type=int)
+    amount = request.form.get('amount', type=float)
+
+    if user_id and amount:
+        db.add_balance_to_user(user_id, amount)
+        flash(f"تمت إضافة رصيد بقيمة {amount} للمستخدم {user_id} بنجاح!", 'success')
+    else:
+        flash('معرف المستخدم أو المبلغ غير صالح.', 'danger')
+
+    return redirect(url_for('users_route'))
+
 # --- API TOOLS & CACHING ---
 @app.route('/api_tools')
 def api_tools_route():

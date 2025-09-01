@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">إدارة المستخدمين والأرصدة</h1>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            إضافة رصيد لمستخدم
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('add_balance_route') }}">
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <label for="user_id" class="form-label">معرف المستخدم (User ID)</label>
+                        <input type="number" class="form-control" id="user_id" name="user_id" required>
+                    </div>
+                    <div class="col-sm-6">
+                        <label for="amount" class="form-label">المبلغ المراد إضافته</label>
+                        <input type="number" step="any" class="form-control" id="amount" name="amount" required>
+                    </div>
+                </div>
+                <button class="btn btn-primary mt-3" type="submit">إضافة رصيد</button>
+            </form>
+        </div>
+    </div>
+
+    <h2 class="mt-4">قائمة المستخدمين</h2>
+    <div class="table-responsive">
+        <table class="table table-striped table-sm table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th scope="col">User ID</th>
+                    <th scope="col">الاسم الأول</th>
+                    <th scope="col">اسم المستخدم</th>
+                    <th scope="col">الرصيد الحالي</th>
+                    <th scope="col">تاريخ الانضمام</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                    <tr>
+                        <td><code>{{ user.id }}</code></td>
+                        <td>{{ user.first_name }}</td>
+                        <td>@{{ user.username or 'N/A' }}</td>
+                        <td>{{ "%.2f"|format(user.balance|float) }}</td>
+                        <td>{{ user.created_at.split('T')[0] }}</td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">لا يوجد مستخدمون لعرضهم.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

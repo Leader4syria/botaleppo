@@ -23,5 +23,11 @@ def register_handlers(bot):
                 bot.send_message(ADMIN_ID, admin_message, parse_mode='Markdown')
 
         # Send the main menu
-        welcome_text = "أهلاً بك في البوت! اختر أحد الخيارات من القائمة."
-        bot.send_message(message.chat.id, welcome_text, reply_markup=main_menu_keyboard())
+        balance = existing_user.get('balance', 0.0) if existing_user else 0.0
+        welcome_text = (
+            f"أهلاً بك يا {user.first_name}!\n\n"
+            f"👤 معرفك: `{user.id}`\n"
+            f"💰 رصيدك الحالي: `{balance:.2f}`\n\n"
+            "اختر أحد الخيارات من القائمة:"
+        )
+        bot.send_message(message.chat.id, welcome_text, reply_markup=main_menu_keyboard(), parse_mode='Markdown')
